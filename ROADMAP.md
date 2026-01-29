@@ -27,18 +27,18 @@ A public, searchable classical guitar database built to preserve and share class
 - [ ] Set up development environment documentation
 
 ### 1.2 Database Schema Design
-- [ ] Analyze Sheerpluck and IMSLP data structures
-- [ ] Design normalized MySQL schema (composers, works, arrangements, editions, etc.)
-- [ ] Define relationships and indexes
+- [x] Analyze Sheerpluck and IMSLP data structures
+- [x] Design normalized MySQL schema (composers, works, arrangements, editions, etc.)
+- [x] Define relationships and indexes
 - [ ] Create ER diagram
-- [ ] Plan data normalization rules (name variants, dates, etc.)
+- [x] Plan data normalization rules (name variants, dates, etc.)
 
 ### 1.3 API Design
-- [ ] Define RESTful endpoints
-- [ ] Plan filtering/search parameters
-- [ ] Design pagination strategy
-- [ ] Document API response formats
-- [ ] Plan versioning strategy
+- [x] Define RESTful endpoints
+- [x] Plan filtering/search parameters
+- [x] Design pagination strategy
+- [x] Document API response formats
+- [x] Plan versioning strategy
 
 ---
 
