@@ -1,0 +1,83 @@
+.data-table-container {
+  margin-bottom: var(--spacing-lg);
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-background);
+  box-shadow: var(--shadow-sm);
+}
+
+.data-table thead tr {
+  background: var(--color-background-header);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.data-table th {
+  padding: var(--spacing-sm);
+  text-align: left;
+  font-weight: 600;
+}
+
+.data-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.data-table th.sortable:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.data-table th.align-center {
+  text-align: center;
+}
+
+.data-table th.align-right {
+  text-align: right;
+}
+
+.data-table tbody tr {
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.data-table tbody tr:hover {
+  background: var(--color-background-alt);
+}
+
+.data-table tbody tr.clickable {
+  cursor: pointer;
+}
+
+.data-table td {
+  padding: var(--spacing-sm);
+  color: var(--color-text-secondary);
+}
+
+.data-table td.align-center {
+  text-align: center;
+}
+
+.data-table td.align-right {
+  text-align: right;
+}
+
+.data-table .link-primary {
+  color: var(--color-link);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.data-table .link-primary:hover {
+  color: var(--color-link-hover);
+}
+
+.data-table .link-secondary {
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.data-table .link-secondary:hover {
+  color: var(--color-text-secondary);
+}

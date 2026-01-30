@@ -1,3 +1,5 @@
+import '../styles/components/Pagination.css';
+
 interface PaginationProps {
   currentPage: number;
   totalPages: number;
@@ -14,45 +16,23 @@ export default function Pagination({
   itemName = 'items',
 }: PaginationProps) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: '1rem',
-        marginTop: '2rem',
-      }}
-    >
+    <div className="pagination">
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        style={{
-          padding: '0.5rem 1rem',
-          background: currentPage === 1 ? '#ddd' : '#4CAF50',
-          color: currentPage === 1 ? '#999' : 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-        }}
+        className="pagination-button"
       >
         Previous
       </button>
 
-      <span style={{ color: '#666' }}>
+      <span className="pagination-page-info">
         Page {currentPage} of {totalPages} ({totalCount.toLocaleString()} {itemName})
       </span>
 
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        style={{
-          padding: '0.5rem 1rem',
-          background: currentPage === totalPages ? '#ddd' : '#4CAF50',
-          color: currentPage === totalPages ? '#999' : 'white',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-        }}
+        className="pagination-button"
       >
         Next
       </button>
