@@ -4,7 +4,7 @@ import api from '../services/api';
 import { useDebounce } from '../hooks/useDebounce';
 import DataTable, { Column } from '../components/DataTable';
 import Pagination from '../components/Pagination';
-import '../styles/pages/HomePage.css';
+import '../styles/shared/ListPage.css';
 
 interface Work {
   id: number;
@@ -257,7 +257,7 @@ export default function HomePage() {
   const totalPages = Math.ceil(totalCount / pageSize);
 
   return (
-    <div className="home-page">
+    <div className="list-page">
       <header className="page-header">
         <h1>Classical Guitar Music Database</h1>
         <p>Browse {(totalCount || 0).toLocaleString()} guitar works alphabetically</p>

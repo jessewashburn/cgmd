@@ -4,7 +4,7 @@ import api from '../services/api';
 import { useDebounce } from '../hooks/useDebounce';
 import Pagination from '../components/Pagination';
 import ExpandableComposerRow from '../components/ExpandableComposerRow';
-import '../styles/pages/ComposerListPage.css';
+import '../styles/shared/ListPage.css';
 
 interface Work {
   id: number;
@@ -302,7 +302,7 @@ export default function ComposerListPage() {
   const totalPages = Math.ceil(totalCount / pageSize);
 
   return (
-    <div className="composer-list-page">
+    <div className="list-page">
       <header className="page-header">
         <h1>Composers</h1>
         <p>Browse {(totalCount || 0).toLocaleString()} classical guitar composers</p>
