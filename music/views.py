@@ -87,6 +87,13 @@ class ComposerViewSet(viewsets.ReadOnlyModelViewSet):
                 Q(name_normalized__icontains=normalized_query)
             )
         
+        # Filter by instrumentation (composers who have works with this instrumentation)
+        instrumentation = self.request.query_params.get('instrumentation')
+        if instrumentation:
+            queryset = queryset.filter(
+                works__instrumentation_category__name=instrumentation
+            ).distinct()
+        
         # Filter by birth year range
         birth_year_min = self.request.query_params.get('birth_year_min')
         birth_year_max = self.request.query_params.get('birth_year_max')

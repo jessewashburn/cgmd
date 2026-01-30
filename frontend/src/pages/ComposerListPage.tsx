@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import Fuse from 'fuse.js';
 import api from '../services/api';
 import { useDebounce } from '../hooks/useDebounce';
@@ -36,6 +35,10 @@ export default function ComposerListPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [sortColumn, setSortColumn] = useState<'name' | 'period' | 'country' | 'birth_year' | 'work_count' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [birthYearRange, setBirthYearRange] = useState<[number, number]>([1400, 2025]);
+  const [selectedInstrumentation, setSelectedInstrumentation] = useState<string>('');
+  const [instrumentations, setInstrumentations] = useState<string[]>([]);
   const debouncedSearch = useDebounce(searchQuery, 300);
   
   const pageSize = 200;
@@ -55,7 +58,7 @@ export default function ComposerListPage() {
 
   useEffect(() => {
     fetchComposers();
-  }, [debouncedSearch, currentPage]);
+  }, [debouncedSearch, currentPage, birthYearRange, selectedInstrumentation]);
 
   // Pre-load all composers in the background for instant fuzzy search
   useEffect(() => {
@@ -76,6 +79,65 @@ export default function ComposerListPage() {
     // Preload after a short delay to not block initial render
     const timer = setTimeout(preloadComposers, 500);
     return () => clearTimeout(timer);
+  }, []);
+
+  // Fetch instrumentation categories
+  useEffect(() => {
+    const fetchInstrumentations = async () => {
+      try {
+        const response = await api.get('/instrumentations/', {
+          params: { page_size: 500 }
+        });
+        const categories = response.data.results || response.data;
+        
+        // Filter for real instrumentation categories (not titles or junk)
+        // Common patterns: "guitar", "Guitar", specific ensembles, proper instrumentation terms
+        const validInstrumentations = categories
+          .map((cat: any) => cat.name)
+          .filter((name: string) => {
+            if (!name || name.length < 3) return false;
+            
+            const lower = name.toLowerCase();
+            
+            // Include if it contains key instrumentation terms
+            const hasValidTerms = 
+              lower.includes('guitar') ||
+              lower.includes('ensemble') ||
+              lower.includes('orchestra') ||
+              lower.includes('voice') ||
+              lower.includes('choir') ||
+              lower.includes('percussion') ||
+              lower.includes('strings') ||
+              lower.includes('wind') ||
+              lower.includes('brass') ||
+              (lower === 'solo') ||
+              (lower === 'duo') ||
+              (lower === 'trio') ||
+              (lower === 'quartet') ||
+              (lower === 'quintet');
+            
+            // Exclude if it looks like a title (has certain patterns)
+            const looksLikeTitle = 
+              lower.includes('op.') ||
+              lower.includes('for ') ||
+              lower.includes(' - ') ||
+              lower.includes('bagatelle') ||
+              lower.includes('study') ||
+              lower.includes('etude') ||
+              name.includes('#') ||
+              /^\d+$/.test(name) || // Just a number
+              name.length > 50; // Too long to be an instrumentation
+            
+            return hasValidTerms && !looksLikeTitle;
+          })
+          .sort((a: string, b: string) => a.localeCompare(b));
+        
+        setInstrumentations(validInstrumentations);
+      } catch (err) {
+        console.error('Error fetching instrumentations:', err);
+      }
+    };
+    fetchInstrumentations();
   }, []);
 
   const fetchComposers = async () => {
@@ -112,12 +174,25 @@ export default function ComposerListPage() {
           setAllComposers(loadedComposers);
         }
       } else {
-        // No search query - use regular pagination
+        // No search query - use regular pagination with filters
         const params: any = {
           page: currentPage,
           page_size: pageSize,
           ordering: 'last_name,first_name',
         };
+        
+        // Add instrumentation filter if selected
+        if (selectedInstrumentation) {
+          params.instrumentation = selectedInstrumentation;
+        }
+        
+        // Add birth year filters if set
+        if (birthYearRange[0] > 1400) {
+          params.birth_year_min = birthYearRange[0];
+        }
+        if (birthYearRange[1] < 2025) {
+          params.birth_year_max = birthYearRange[1];
+        }
 
         const response = await api.get('/composers/', { params });
         setComposers(response.data.results || response.data);
@@ -142,11 +217,21 @@ export default function ComposerListPage() {
     }
   };
 
-  // Apply sorting to displayed composers
+  // Apply sorting and advanced filters to displayed composers
   const sortedComposers = useMemo(() => {
-    if (!sortColumn) return composers;
+    let filtered = composers;
     
-    const sorted = [...composers].sort((a, b) => {
+    // Apply birth year filter (only when not searching, as search uses allComposers)
+    if (!debouncedSearch && (birthYearRange[0] > 1400 || birthYearRange[1] < 2025)) {
+      filtered = filtered.filter(c => {
+        const birthYear = c.birth_year || c.death_year || 1700;
+        return birthYear >= birthYearRange[0] && birthYear <= birthYearRange[1];
+      });
+    }
+    
+    if (!sortColumn) return filtered;
+    
+    const sorted = [...filtered].sort((a, b) => {
       let aVal: any;
       let bVal: any;
       
@@ -179,7 +264,7 @@ export default function ComposerListPage() {
     });
     
     return sorted;
-  }, [composers, sortColumn, sortDirection]);
+  }, [composers, sortColumn, sortDirection, birthYearRange, selectedInstrumentation, allComposers.length]);
 
   const loadComposerWorks = async (composerId: number): Promise<Work[]> => {
     try {
@@ -205,7 +290,7 @@ export default function ComposerListPage() {
       </header>
 
       {/* Search Bar */}
-      <div style={{ marginBottom: '2rem', maxWidth: '800px', margin: '0 auto 2rem' }}>
+      <div style={{ marginBottom: '1rem', maxWidth: '800px', margin: '0 auto 1rem' }}>
         <input
           type="text"
           placeholder="Search for composers..."
@@ -227,16 +312,130 @@ export default function ComposerListPage() {
         />
       </div>
 
-      {/* Quick Links */}
-      <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginBottom: '2rem' }}>
-        <Link to="/works" style={{ textDecoration: 'none', color: '#4CAF50', fontWeight: '500' }}>
-          Browse Works
-        </Link>
-        <span style={{ color: '#ddd' }}>|</span>
-        <Link to="/search" style={{ textDecoration: 'none', color: '#4CAF50', fontWeight: '500' }}>
-          Advanced Search
-        </Link>
+      {/* Advanced Filters Toggle */}
+      <div style={{ maxWidth: '800px', margin: '0 auto 1rem', textAlign: 'center' }}>
+        <button
+          onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#4CAF50',
+            cursor: 'pointer',
+            fontSize: '0.9rem',
+            fontWeight: '500',
+            padding: '0.5rem',
+          }}
+        >
+          {showAdvancedFilters ? '▲' : '▼'} Advanced Filters
+        </button>
       </div>
+
+      {/* Advanced Filters Panel */}
+      {showAdvancedFilters && (
+        <div
+          style={{
+            maxWidth: '800px',
+            margin: '0 auto 2rem',
+            padding: '1.5rem',
+            background: '#f9f9f9',
+            borderRadius: '8px',
+            border: '1px solid #ddd',
+          }}
+        >
+          {/* Birth Year Range Slider */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '0.5rem',
+                fontWeight: '600',
+                color: '#333',
+              }}
+            >
+              Birth Year Range: {birthYearRange[0]} - {birthYearRange[1]}
+            </label>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              <input
+                type="range"
+                min="1400"
+                max="2025"
+                value={birthYearRange[0]}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  setBirthYearRange([Math.min(val, birthYearRange[1]), birthYearRange[1]]);
+                }}
+                style={{ flex: 1 }}
+              />
+              <input
+                type="range"
+                min="1400"
+                max="2025"
+                value={birthYearRange[1]}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  setBirthYearRange([birthYearRange[0], Math.max(val, birthYearRange[0])]);
+                }}
+                style={{ flex: 1 }}
+              />
+            </div>
+          </div>
+
+          {/* Instrumentation Dropdown */}
+          <div style={{ marginBottom: '1rem' }}>
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '0.5rem',
+                fontWeight: '600',
+                color: '#333',
+              }}
+            >
+              Instrumentation
+            </label>
+            <select
+              value={selectedInstrumentation}
+              onChange={(e) => {
+                setSelectedInstrumentation(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                fontSize: '1rem',
+                border: '2px solid #ddd',
+                borderRadius: '8px',
+                outline: 'none',
+              }}
+            >
+              <option value="">All Instrumentations</option>
+              {instrumentations.map((inst) => (
+                <option key={inst} value={inst}>
+                  {inst}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Clear Filters Button */}
+          <button
+            onClick={() => {
+              setBirthYearRange([1400, 2025]);
+              setSelectedInstrumentation('');
+            }}
+            style={{
+              padding: '0.5rem 1rem',
+              background: '#666',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+            }}
+          >
+            Clear Filters
+          </button>
+        </div>
+      )}
 
       {/* Error State */}
       {error && (
