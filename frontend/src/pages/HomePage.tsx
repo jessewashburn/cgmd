@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useDebounce } from '../hooks/useDebounce';
+import DataTable, { Column } from '../components/DataTable';
+import Pagination from '../components/Pagination';
 
 interface Work {
   id: number;
@@ -19,6 +21,7 @@ interface Work {
 }
 
 export default function HomePage() {
+  const navigate = useNavigate();
   const [works, setWorks] = useState<Work[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +31,38 @@ export default function HomePage() {
   const debouncedSearch = useDebounce(searchQuery, 300);
   
   const pageSize = 200;
+
+  const columns: Column<Work>[] = [
+    {
+      header: 'Work Title',
+      accessor: (work) => (
+        <Link
+          to={`/works/${work.id}`}
+          style={{ textDecoration: 'none', color: '#1976d2', fontWeight: '500' }}
+        >
+          {work.title}
+        </Link>
+      ),
+    },
+    {
+      header: 'Composer',
+      accessor: (work) =>
+        work.composer ? (
+          <Link
+            to={`/composers/${work.composer.id}`}
+            style={{ textDecoration: 'none', color: '#555' }}
+          >
+            {work.composer.full_name}
+          </Link>
+        ) : (
+          '-'
+        ),
+    },
+    {
+      header: 'Instrumentation',
+      accessor: (work) => work.instrumentation_category?.name || '-',
+    },
+  ];
 
   useEffect(() => {
     fetchWorks();
@@ -137,96 +172,26 @@ export default function HomePage() {
       )}
 
       {/* Works List */}
-      {!loading && !error && works.length > 0 && (
+      {!error && (
         <>
-          <div style={{ marginBottom: '2rem' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-              <thead>
-                <tr style={{ background: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
-                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600' }}>Work Title</th>
-                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600' }}>Composer</th>
-                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600' }}>Instrumentation</th>
-                </tr>
-              </thead>
-              <tbody>
-                {works.map((work) => (
-                  <tr 
-                    key={work.id} 
-                    style={{ borderBottom: '1px solid #eee' }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#f9f9f9'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                  >
-                    <td style={{ padding: '1rem' }}>
-                      <Link 
-                        to={`/works/${work.id}`}
-                        style={{ textDecoration: 'none', color: '#1976d2', fontWeight: '500' }}
-                      >
-                        {work.title}
-                      </Link>
-                    </td>
-                    <td style={{ padding: '1rem' }}>
-                      {work.composer && (
-                        <Link 
-                          to={`/composers/${work.composer.id}`}
-                          style={{ textDecoration: 'none', color: '#555' }}
-                        >
-                          {work.composer.full_name}
-                        </Link>
-                      )}
-                    </td>
-                    <td style={{ padding: '1rem', color: '#666' }}>
-                      {work.instrumentation_category?.name || '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            data={works}
+            columns={columns}
+            getRowKey={(work) => work.id}
+            loading={loading}
+            emptyMessage="No works found. Try adjusting your search."
+          />
 
-          {/* Pagination */}
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', marginTop: '2rem' }}>
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              style={{
-                padding: '0.5rem 1rem',
-                background: currentPage === 1 ? '#ddd' : '#4CAF50',
-                color: currentPage === 1 ? '#999' : 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
-              }}
-            >
-              Previous
-            </button>
-            
-            <span style={{ color: '#666' }}>
-              Page {currentPage} of {totalPages} ({totalCount.toLocaleString()} total works)
-            </span>
-            
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              style={{
-                padding: '0.5rem 1rem',
-                background: currentPage === totalPages ? '#ddd' : '#4CAF50',
-                color: currentPage === totalPages ? '#999' : 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
-              }}
-            >
-              Next
-            </button>
-          </div>
+          {!loading && works.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              onPageChange={setCurrentPage}
+              itemName="total works"
+            />
+          )}
         </>
-      )}
-
-      {/* No Results */}
-      {!loading && !error && works.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '3rem', color: '#666' }}>
-          <p>No works found. Try adjusting your search.</p>
-        </div>
       )}
     </div>
   );
