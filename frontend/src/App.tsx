@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
-import HomePage from './pages/HomePage';
+import WorkListPage from './pages/WorkListPage';
 import ComposerListPage from './pages/ComposerListPage';
 import ComposerDetailPage from './pages/ComposerDetailPage';
 import WorkDetailPage from './pages/WorkDetailPage';
@@ -15,7 +15,7 @@ function App() {
         <Navbar />
         <Routes>
           <Route path="/" element={<ComposerListPage />} />
-          <Route path="/works" element={<HomePage />} />
+          <Route path="/works" element={<WorkListPage />} />
           <Route path="/composers" element={<ComposerListPage />} />
           <Route path="/composers/:id" element={<ComposerDetailPage />} />
           <Route path="/works/:id" element={<WorkDetailPage />} />
