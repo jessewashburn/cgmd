@@ -107,11 +107,40 @@ The admin portal will be at: http://localhost:8000/admin/
 
 ## Next Steps
 
+### Import Sheerpluck Data
+
+```bash
+python manage.py import_sheerpluck
+```
+
+See [IMPORT_GUIDE.md](IMPORT_GUIDE.md) for detailed import instructions.
+
+### Build REST API
+
 - [ ] Create serializers for API endpoints
 - [ ] Set up REST API views and routes
-- [ ] Implement data import pipeline for Sheerpluck CSV
 - [ ] Configure CORS for frontend integration
 - [ ] Set up API documentation with drf-spectacular
+
+## Management Commands
+
+### import_sheerpluck
+
+Import classical guitar repertoire data from Sheerpluck CSV.
+
+```bash
+# Basic import
+python manage.py import_sheerpluck
+
+# Dry run (validate without saving)
+python manage.py import_sheerpluck --dry-run
+
+# Skip existing works
+python manage.py import_sheerpluck --skip-existing
+
+# Custom CSV path
+python manage.py import_sheerpluck /path/to/data.csv
+```
 
 ## Development Notes
 
