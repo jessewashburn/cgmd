@@ -34,9 +34,13 @@ export default function WorkDetailPage() {
         <h1>{work.title}</h1>
         <p style={{ fontSize: '1.2rem' }}>
           by{' '}
-          <Link to={`/composers/${work.composer.id}`}>
-            {work.composer.full_name}
-          </Link>
+          {work.composer ? (
+            <Link to={`/composers/${work.composer.id}`}>
+              {work.composer.full_name}
+            </Link>
+          ) : (
+            <span>Unknown Composer</span>
+          )}
         </p>
       </header>
 
@@ -104,7 +108,9 @@ export default function WorkDetailPage() {
       </section>
 
       <div style={{ marginTop: '2rem' }}>
-        <Link to={`/composers/${work.composer.id}`}>← Back to Composer</Link>
+        {work.composer && (
+          <Link to={`/composers/${work.composer.id}`}>← Back to Composer</Link>
+        )}
       </div>
     </div>
   );

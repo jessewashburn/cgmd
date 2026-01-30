@@ -1,8 +1,8 @@
-import Fuse from 'fuse.js';
+import Fuse, { IFuseOptions } from 'fuse.js';
 import { Work, Composer } from '../types';
 
 // Configuration for Work search
-const workSearchOptions: Fuse.IFuseOptions<Work> = {
+const workSearchOptions: IFuseOptions<Work> = {
   keys: [
     { name: 'title', weight: 2 },
     { name: 'composer.full_name', weight: 1.5 },
@@ -16,7 +16,7 @@ const workSearchOptions: Fuse.IFuseOptions<Work> = {
 };
 
 // Configuration for Composer search
-const composerSearchOptions: Fuse.IFuseOptions<Composer> = {
+const composerSearchOptions: IFuseOptions<Composer> = {
   keys: [
     { name: 'full_name', weight: 2 },
     { name: 'first_name', weight: 1 },

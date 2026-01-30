@@ -19,7 +19,7 @@ export interface Work {
   composer: {
     id: number;
     full_name: string;
-  };
+  } | null;
   title: string;
   catalog_number: string | null;
   year_composed: number | null;

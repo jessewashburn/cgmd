@@ -81,18 +81,30 @@ class ComposerDetailSerializer(serializers.ModelSerializer):
 
 class WorkListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for work lists"""
-    composer_name = serializers.CharField(source='composer.full_name', read_only=True)
-    instrumentation_name = serializers.CharField(
-        source='instrumentation_category.name', 
-        read_only=True
-    )
+    composer = serializers.SerializerMethodField()
+    instrumentation_category = InstrumentationCategorySerializer(read_only=True)
+    tags = serializers.SerializerMethodField()
     
     class Meta:
         model = Work
         fields = [
-            'id', 'title', 'composer_name', 'composition_year',
-            'instrumentation_name', 'difficulty_level', 'opus_number'
+            'id', 'title', 'composer', 'catalog_number',
+            'composition_year', 'instrumentation_category', 'instrumentation_detail',
+            'duration_minutes', 'difficulty_level', 'movements',
+            'tags', 'created_at', 'updated_at'
         ]
+    
+    def get_composer(self, obj):
+        if obj.composer:
+            return {
+                'id': obj.composer.id,
+                'full_name': obj.composer.full_name
+            }
+        return None
+    
+    def get_tags(self, obj):
+        work_tags = obj.work_tags.select_related('tag')[:5]  # Limit to 5 tags for performance
+        return [{'id': wt.tag.id, 'name': wt.tag.name} for wt in work_tags]
 
 
 class WorkDetailSerializer(serializers.ModelSerializer):
