@@ -4,6 +4,7 @@ import api from '../services/api';
 import { useDebounce } from '../hooks/useDebounce';
 import { useInstrumentations } from '../hooks/useInstrumentations';
 import { useCountries } from '../hooks/useCountries';
+import { useSort } from '../hooks/useSort';
 import Pagination from '../components/Pagination';
 import ExpandableComposerRow from '../components/ExpandableComposerRow';
 import '../styles/shared/ListPage.css';
@@ -36,8 +37,7 @@ export default function ComposerListPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [sortColumn, setSortColumn] = useState<'name' | 'country' | 'birth_year' | 'work_count' | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const { sortColumn, sortDirection, handleSort } = useSort<'name' | 'country' | 'birth_year' | 'work_count'>();
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [birthYearRange, setBirthYearRange] = useState<[number, number]>([1400, 2025]);
   const [selectedInstrumentation, setSelectedInstrumentation] = useState<string>('');
@@ -157,15 +157,10 @@ export default function ComposerListPage() {
     }
   };
 
-  const handleSort = (column: 'name' | 'country' | 'birth_year' | 'work_count') => {
-    if (sortColumn === column) {
-      // Toggle direction if same column
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      // New column, default to ascending
-      setSortColumn(column);
-      setSortDirection('asc');
-    }
+  const clearFilters = () => {
+    setBirthYearRange([1400, 2025]);
+    setSelectedInstrumentation('');
+    setSelectedCountry('');
   };
 
   // Apply sorting and advanced filters to displayed composers
@@ -331,14 +326,7 @@ export default function ComposerListPage() {
           </div>
 
           {/* Clear Filters Button */}
-          <button
-            className="clear-filters-button"
-            onClick={() => {
-              setBirthYearRange([1400, 2025]);
-              setSelectedInstrumentation('');
-              setSelectedCountry('');
-            }}
-          >
+          <button className="clear-filters-button" onClick={clearFilters}>
             Clear Filters
           </button>
         </div>

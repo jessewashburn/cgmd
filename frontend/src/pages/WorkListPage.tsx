@@ -4,6 +4,7 @@ import api from '../services/api';
 import { useDebounce } from '../hooks/useDebounce';
 import { useInstrumentations } from '../hooks/useInstrumentations';
 import { useCountries } from '../hooks/useCountries';
+import { useSort } from '../hooks/useSort';
 import DataTable, { Column } from '../components/DataTable';
 import Pagination from '../components/Pagination';
 import '../styles/shared/ListPage.css';
@@ -30,8 +31,7 @@ export default function WorkListPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [sortColumn, setSortColumn] = useState<'title' | 'composer' | 'instrumentation' | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const { sortColumn, sortDirection, handleSort } = useSort<'title' | 'composer' | 'instrumentation'>();
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [compositionYearRange, setCompositionYearRange] = useState<[number, number]>([1400, 2025]);
   const [selectedInstrumentation, setSelectedInstrumentation] = useState<string>('');
@@ -42,13 +42,10 @@ export default function WorkListPage() {
   
   const pageSize = 200;
 
-  const handleSort = (column: 'title' | 'composer' | 'instrumentation') => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(column);
-      setSortDirection('asc');
-    }
+  const clearFilters = () => {
+    setCompositionYearRange([1400, 2025]);
+    setSelectedInstrumentation('');
+    setSelectedCountry('');
   };
 
   // Apply sorting to displayed works
@@ -287,14 +284,7 @@ export default function WorkListPage() {
           </div>
 
           {/* Clear Filters Button */}
-          <button
-            className="clear-filters-button"
-            onClick={() => {
-              setCompositionYearRange([1400, 2025]);
-              setSelectedInstrumentation('');
-              setSelectedCountry('');
-            }}
-          >
+          <button className="clear-filters-button" onClick={clearFilters}>
             Clear Filters
           </button>
         </div>
