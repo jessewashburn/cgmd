@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import Fuse from 'fuse.js';
 import api from '../services/api';
@@ -38,18 +38,43 @@ export default function ComposerListPage() {
   
   const pageSize = 200;
 
-  // Fuse.js configuration for fuzzy search
-  const fuseOptions = {
-    keys: ['full_name'], // Only search on full_name since that's what the API provides
-    threshold: 0.4, // Lower = stricter (0.0 = exact, 1.0 = match anything) - 0.4 catches typos
-    includeScore: true,
-    minMatchCharLength: 2,
-    ignoreLocation: true,
-  };
+  // Memoized Fuse instance - only recreate when allComposers changes
+  const fuse = useMemo(() => {
+    if (allComposers.length === 0) return null;
+    return new Fuse<Composer>(allComposers, {
+      keys: ['full_name'],
+      threshold: 0.4,
+      includeScore: true,
+      minMatchCharLength: 2,
+      ignoreLocation: true,
+      distance: 100,
+    });
+  }, [allComposers]);
 
   useEffect(() => {
     fetchComposers();
   }, [debouncedSearch, currentPage]);
+
+  // Pre-load all composers in the background for instant fuzzy search
+  useEffect(() => {
+    const preloadComposers = async () => {
+      if (allComposers.length === 0) {
+        try {
+          const response = await api.get('/composers/', {
+            params: { page_size: 20000, ordering: 'last_name,first_name' },
+          });
+          const loadedComposers = response.data.results || response.data;
+          setAllComposers(loadedComposers);
+        } catch (err) {
+          console.error('Error preloading composers:', err);
+        }
+      }
+    };
+    
+    // Preload after a short delay to not block initial render
+    const timer = setTimeout(preloadComposers, 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const fetchComposers = async () => {
     setLoading(true);
@@ -57,30 +82,32 @@ export default function ComposerListPage() {
     
     try {
       if (debouncedSearch) {
-        // Always use fuzzy search for queries to catch typos
-        // Load all composers if not already loaded
-        if (allComposers.length === 0) {
+        if (allComposers.length > 0 && fuse) {
+          // Fast substring search first (works well since data is presorted)
+          const searchLower = debouncedSearch.toLowerCase();
+          const substringMatches = allComposers.filter(c => 
+            c.full_name.toLowerCase().includes(searchLower)
+          );
+          
+          let matches: Composer[];
+          if (substringMatches.length > 0) {
+            // Use substring matches if found (faster)
+            matches = substringMatches;
+          } else {
+            // Fall back to fuzzy search for typos
+            const fuseResults = fuse.search(debouncedSearch);
+            matches = fuseResults.map((result) => result.item);
+          }
+          
+          setComposers(matches.slice(0, pageSize));
+          setTotalCount(matches.length);
+        } else {
+          // Fallback: load composers if not preloaded yet
           const response = await api.get('/composers/', {
             params: { page_size: 20000, ordering: 'last_name,first_name' },
           });
           const loadedComposers = response.data.results || response.data;
           setAllComposers(loadedComposers);
-          
-          // Perform fuzzy search
-          const fuse = new Fuse<Composer>(loadedComposers, fuseOptions);
-          const results = fuse.search(debouncedSearch);
-          const matches: Composer[] = results.map((result) => result.item);
-          
-          setComposers(matches.slice(0, pageSize));
-          setTotalCount(matches.length);
-        } else {
-          // Use already loaded composers for fuzzy search
-          const fuse = new Fuse<Composer>(allComposers, fuseOptions);
-          const results = fuse.search(debouncedSearch);
-          const matches: Composer[] = results.map((result) => result.item);
-          
-          setComposers(matches.slice(0, pageSize));
-          setTotalCount(matches.length);
         }
       } else {
         // No search query - use regular pagination
