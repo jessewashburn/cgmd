@@ -97,15 +97,15 @@ A public, searchable classical guitar database built to preserve and share class
 ### 3.4 REST API
 - [ ] Create serializers for all models
 - [ ] Implement viewsets and endpoints
-### 3.4 REST API
-- [ ] Create serializers for all models
-- [ ] Implement viewsets and endpoints
-- [ ] Add filtering (django-filter)
-- [ ] Implement full-text search (MySQL or separate engine)
-- [ ] Add pagination
-- [ ] Implement CORS for GitHub Pages
-- [ ] Create API documentation (drf-spectacular/Swagger)
-- [ ] Add rate limiting
+### 3.4 REST API ✅ COMPLETED
+- [x] Create serializers for all models
+- [x] Implement viewsets and endpoints
+- [x] Add filtering (django-filter)
+- [x] Implement full-text search (MySQL or separate engine)
+- [x] Add pagination
+- [x] Implement CORS for GitHub Pages
+- [x] Create API documentation (drf-spectacular/Swagger)
+- [ ] Add rate limiting (deferred to production)
 
 ### 3.5 Django Admin Portal ✅ COMPLETED
 - [x] Customize Django Admin for each model

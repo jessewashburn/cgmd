@@ -80,3 +80,72 @@ class DataCleaningTests(TestCase):
         movements = split_movements('I. Fast\nII. Slow\nIII. Fast')
         self.assertEqual(len(movements), 3)
         self.assertEqual(movements[0], 'Fast')
+
+
+class APITests(TestCase):
+    """Test API endpoints"""
+    
+    def setUp(self):
+        """Create test data"""
+        from .models import Country, Composer, Work, InstrumentationCategory, DataSource
+        
+        # Create test data
+        self.country = Country.objects.create(name='Test Country', iso_code='TC')
+        self.data_source = DataSource.objects.create(name='Test Source')
+        self.instrumentation = InstrumentationCategory.objects.create(name='Solo')
+        
+        self.composer = Composer.objects.create(
+            full_name='Test Composer',
+            first_name='Test',
+            last_name='Composer',
+            name_normalized='test composer',
+            birth_year=1900,
+            country=self.country,
+            data_source=self.data_source
+        )
+        
+        self.work = Work.objects.create(
+            composer=self.composer,
+            title='Test Work',
+            title_normalized='test work',
+            composition_year=1950,
+            instrumentation_category=self.instrumentation,
+            difficulty_level=5,
+            is_public=True,
+            data_source=self.data_source
+        )
+    
+    def test_composers_list(self):
+        """Test composers list endpoint"""
+        from rest_framework.test import APIClient
+        client = APIClient()
+        
+        response = client.get('/api/composers/')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('results', response.data)
+    
+    def test_works_list(self):
+        """Test works list endpoint"""
+        from rest_framework.test import APIClient
+        client = APIClient()
+        
+        response = client.get('/api/works/')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('results', response.data)
+    
+    def test_composer_detail(self):
+        """Test composer detail endpoint"""
+        from rest_framework.test import APIClient
+        client = APIClient()
+        
+        response = client.get(f'/api/composers/{self.composer.id}/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['full_name'], 'Test Composer')
+    
+    def test_work_search(self):
+        """Test work search endpoint"""
+        from rest_framework.test import APIClient
+        client = APIClient()
+        
+        response = client.get('/api/works/search/?q=test')
+        self.assertEqual(response.status_code, 200)

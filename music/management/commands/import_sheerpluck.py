@@ -23,7 +23,7 @@ class Command(BaseCommand):
             'csv_file',
             nargs='?',
             type=str,
-            default='sheerpluck_data.csv',
+            default='data/sheerpluck_data.csv',
             help='Path to the Sheerpluck CSV file'
         )
         parser.add_argument(

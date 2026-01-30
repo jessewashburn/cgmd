@@ -2,6 +2,20 @@
 
 Django REST API for the Classical Guitar Music Database project.
 
+## 📁 Project Structure
+
+See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for detailed file organization.
+
+```
+cgmd/
+├── cgmd_backend/      # Django project settings
+├── music/             # Main app (models, views, serializers)
+├── docs/              # Documentation
+├── data/              # Data files and schema
+├── scripts/           # Setup and utility scripts
+└── README.md          # This file
+```
+
 ## Tech Stack
 
 - **Python**: 3.12.6
@@ -70,6 +84,11 @@ CREATE DATABASE cgmd CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 EXIT;
 ```
 
+Or use the provided schema:
+```bash
+mysql -u root -p cgmd < data/database_schema.sql
+```
+
 ### 6. Run Migrations
 
 ```bash
@@ -89,9 +108,24 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-The API will be available at: http://localhost:8000/
+The API will be available at: http://localhost:8000/api/
 
 The admin portal will be at: http://localhost:8000/admin/
+
+The API documentation will be at: http://localhost:8000/api/docs/
+
+## API Endpoints
+
+The REST API provides the following endpoints:
+
+- `/api/composers/` - List and search composers
+- `/api/works/` - List and search musical works
+- `/api/countries/` - List countries
+- `/api/instrumentations/` - List instrumentation categories
+- `/api/tags/` - List tags
+- `/api/stats/summary/` - Database statistics
+
+See [API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md) for complete API reference.
 
 ## Database Models
 
@@ -113,7 +147,7 @@ The admin portal will be at: http://localhost:8000/admin/
 python manage.py import_sheerpluck
 ```
 
-See [IMPORT_GUIDE.md](IMPORT_GUIDE.md) for detailed import instructions.
+See [IMPORT_GUIDE.md](docs/IMPORT_GUIDE.md) for detailed import instructions.
 
 ### Build REST API
 
