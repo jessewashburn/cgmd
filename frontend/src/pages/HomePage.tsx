@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { useDebounce } from '../hooks/useDebounce';
@@ -27,13 +27,64 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [sortColumn, setSortColumn] = useState<'title' | 'composer' | 'instrumentation' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const debouncedSearch = useDebounce(searchQuery, 300);
   
   const pageSize = 200;
 
+  const handleSort = (column: 'title' | 'composer' | 'instrumentation') => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Apply sorting to displayed works
+  const sortedWorks = useMemo(() => {
+    if (!sortColumn) return works;
+    
+    const sorted = [...works].sort((a, b) => {
+      let aVal: string;
+      let bVal: string;
+      
+      switch (sortColumn) {
+        case 'title':
+          aVal = a.title.toLowerCase();
+          bVal = b.title.toLowerCase();
+          break;
+        case 'composer':
+          aVal = a.composer?.full_name.toLowerCase() || '';
+          bVal = b.composer?.full_name.toLowerCase() || '';
+          break;
+        case 'instrumentation':
+          aVal = a.instrumentation_category?.name.toLowerCase() || '';
+          bVal = b.instrumentation_category?.name.toLowerCase() || '';
+          break;
+        default:
+          return 0;
+      }
+      
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    
+    return sorted;
+  }, [works, sortColumn, sortDirection]);
+
   const columns: Column<Work>[] = [
     {
-      header: 'Work Title',
+      header: (
+        <span 
+          onClick={() => handleSort('title')} 
+          style={{ cursor: 'pointer', userSelect: 'none' }}
+        >
+          Work Title {sortColumn === 'title' && (sortDirection === 'asc' ? '↑' : '↓')}
+        </span>
+      ),
       accessor: (work) => (
         <Link
           to={`/works/${work.id}`}
@@ -44,7 +95,14 @@ export default function HomePage() {
       ),
     },
     {
-      header: 'Composer',
+      header: (
+        <span 
+          onClick={() => handleSort('composer')} 
+          style={{ cursor: 'pointer', userSelect: 'none' }}
+        >
+          Composer {sortColumn === 'composer' && (sortDirection === 'asc' ? '↑' : '↓')}
+        </span>
+      ),
       accessor: (work) =>
         work.composer ? (
           <Link
@@ -58,7 +116,14 @@ export default function HomePage() {
         ),
     },
     {
-      header: 'Instrumentation',
+      header: (
+        <span 
+          onClick={() => handleSort('instrumentation')} 
+          style={{ cursor: 'pointer', userSelect: 'none' }}
+        >
+          Instrumentation {sortColumn === 'instrumentation' && (sortDirection === 'asc' ? '↑' : '↓')}
+        </span>
+      ),
       accessor: (work) => work.instrumentation_category?.name || '-',
     },
   ];
@@ -174,7 +239,7 @@ export default function HomePage() {
       {!error && (
         <>
           <DataTable
-            data={works}
+            data={sortedWorks}
             columns={columns}
             getRowKey={(work) => work.id}
             loading={loading}
