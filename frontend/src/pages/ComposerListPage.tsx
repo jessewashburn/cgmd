@@ -34,6 +34,8 @@ export default function ComposerListPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [sortColumn, setSortColumn] = useState<'name' | 'period' | 'country' | 'birth_year' | 'work_count' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const debouncedSearch = useDebounce(searchQuery, 300);
   
   const pageSize = 200;
@@ -129,6 +131,56 @@ export default function ComposerListPage() {
     }
   };
 
+  const handleSort = (column: 'name' | 'period' | 'country' | 'birth_year' | 'work_count') => {
+    if (sortColumn === column) {
+      // Toggle direction if same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New column, default to ascending
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Apply sorting to displayed composers
+  const sortedComposers = useMemo(() => {
+    if (!sortColumn) return composers;
+    
+    const sorted = [...composers].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+      
+      switch (sortColumn) {
+        case 'name':
+          aVal = a.full_name.toLowerCase();
+          bVal = b.full_name.toLowerCase();
+          break;
+        case 'period':
+          aVal = a.period?.toLowerCase() || '';
+          bVal = b.period?.toLowerCase() || '';
+          break;
+        case 'country':
+          aVal = a.country_name?.toLowerCase() || '';
+          bVal = b.country_name?.toLowerCase() || '';
+          break;
+        case 'birth_year':
+          aVal = a.birth_year || 9999;
+          bVal = b.birth_year || 9999;
+          break;
+        case 'work_count':
+          aVal = a.work_count;
+          bVal = b.work_count;
+          break;
+      }
+      
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    
+    return sorted;
+  }, [composers, sortColumn, sortDirection]);
+
   const loadComposerWorks = async (composerId: number): Promise<Work[]> => {
     try {
       const response = await api.get(`/composers/${composerId}/works/`);
@@ -221,19 +273,72 @@ export default function ComposerListPage() {
             >
               <thead>
                 <tr style={{ background: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
-                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600' }}>Name</th>
-                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600' }}>Period</th>
-                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600' }}>Country</th>
-                  <th style={{ padding: '1rem', textAlign: 'center', fontWeight: '600', width: '150px' }}>
-                    Years
+                  <th 
+                    onClick={() => handleSort('name')}
+                    style={{ 
+                      padding: '1rem', 
+                      textAlign: 'left', 
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      userSelect: 'none'
+                    }}
+                  >
+                    Name {sortColumn === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
                   </th>
-                  <th style={{ padding: '1rem', textAlign: 'center', fontWeight: '600', width: '100px' }}>
-                    Works
+                  <th 
+                    onClick={() => handleSort('period')}
+                    style={{ 
+                      padding: '1rem', 
+                      textAlign: 'left', 
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      userSelect: 'none'
+                    }}
+                  >
+                    Period {sortColumn === 'period' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </th>
+                  <th 
+                    onClick={() => handleSort('country')}
+                    style={{ 
+                      padding: '1rem', 
+                      textAlign: 'left', 
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      userSelect: 'none'
+                    }}
+                  >
+                    Country {sortColumn === 'country' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </th>
+                  <th 
+                    onClick={() => handleSort('birth_year')}
+                    style={{ 
+                      padding: '1rem', 
+                      textAlign: 'center', 
+                      fontWeight: '600', 
+                      width: '150px',
+                      cursor: 'pointer',
+                      userSelect: 'none'
+                    }}
+                  >
+                    Years {sortColumn === 'birth_year' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  </th>
+                  <th 
+                    onClick={() => handleSort('work_count')}
+                    style={{ 
+                      padding: '1rem', 
+                      textAlign: 'center', 
+                      fontWeight: '600', 
+                      width: '100px',
+                      cursor: 'pointer',
+                      userSelect: 'none'
+                    }}
+                  >
+                    Works {sortColumn === 'work_count' && (sortDirection === 'asc' ? '↑' : '↓')}
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {composers.map((composer) => (
+                {sortedComposers.map((composer) => (
                   <ExpandableComposerRow
                     key={composer.id}
                     composer={composer}
