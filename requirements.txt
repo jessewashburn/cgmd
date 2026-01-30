@@ -1,0 +1,7 @@
+django==6.0.1
+djangorestframework==3.16.1
+mysqlclient==2.2.7
+django-filter==25.2
+django-cors-headers==4.9.0
+drf-spectacular==0.29.0
+python-dotenv==1.2.1
