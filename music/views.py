@@ -64,19 +64,28 @@ class ComposerViewSet(viewsets.ReadOnlyModelViewSet):
     by_country: Filter composers by country
     """
     queryset = Composer.objects.select_related('country', 'data_source').all()
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['full_name', 'last_name', 'first_name', 'name_normalized']
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     ordering_fields = ['last_name', 'birth_year', 'death_year']
     ordering = ['last_name', 'first_name']
     filterset_fields = ['period', 'country', 'is_living', 'is_verified']
     
-    def get_serializer_class(self):
-        if self.action == 'retrieve':
-            return ComposerDetailSerializer
-        return ComposerListSerializer
-    
     def get_queryset(self):
         queryset = super().get_queryset()
+        
+        # Implement fuzzy search using the normalized name field
+        search_query = self.request.query_params.get('search')
+        if search_query:
+            # Normalize the search query
+            import unicodedata
+            normalized_query = unicodedata.normalize('NFKD', search_query).encode('ascii', 'ignore').decode('utf-8').lower()
+            
+            # Search in both regular fields and normalized field for fuzzy matching
+            queryset = queryset.filter(
+                Q(full_name__icontains=search_query) |
+                Q(last_name__icontains=search_query) |
+                Q(first_name__icontains=search_query) |
+                Q(name_normalized__icontains=normalized_query)
+            )
         
         # Filter by birth year range
         birth_year_min = self.request.query_params.get('birth_year_min')
@@ -88,6 +97,11 @@ class ComposerViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(birth_year__lte=birth_year_max)
         
         return queryset
+    
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return ComposerDetailSerializer
+        return ComposerListSerializer
     
     @action(detail=False, methods=['get'])
     def by_period(self, request):
