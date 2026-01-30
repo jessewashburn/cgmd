@@ -71,9 +71,6 @@ export default function ExpandableComposerRow({ composer, onLoadWorks }: Expanda
           </Link>
         </td>
         <td className="align-left">
-          {composer.period || '-'}
-        </td>
-        <td className="align-left">
           {composer.country_name || '-'}
         </td>
         <td className="align-center">
@@ -85,7 +82,7 @@ export default function ExpandableComposerRow({ composer, onLoadWorks }: Expanda
       </tr>
       {isExpanded && (
         <tr className="expanded-works-row">
-          <td colSpan={5}>
+          <td colSpan={4}>
             <div className="expanded-works-content">
               {loadingWorks ? (
                 <p className="loading-works">Loading works...</p>

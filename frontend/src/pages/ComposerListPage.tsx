@@ -34,7 +34,7 @@ export default function ComposerListPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [sortColumn, setSortColumn] = useState<'name' | 'period' | 'country' | 'birth_year' | 'work_count' | null>(null);
+  const [sortColumn, setSortColumn] = useState<'name' | 'country' | 'birth_year' | 'work_count' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [birthYearRange, setBirthYearRange] = useState<[number, number]>([1400, 2025]);
@@ -233,7 +233,7 @@ export default function ComposerListPage() {
     }
   };
 
-  const handleSort = (column: 'name' | 'period' | 'country' | 'birth_year' | 'work_count') => {
+  const handleSort = (column: 'name' | 'country' | 'birth_year' | 'work_count') => {
     if (sortColumn === column) {
       // Toggle direction if same column
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -266,10 +266,6 @@ export default function ComposerListPage() {
         case 'name':
           aVal = a.full_name.toLowerCase();
           bVal = b.full_name.toLowerCase();
-          break;
-        case 'period':
-          aVal = a.period?.toLowerCase() || '';
-          bVal = b.period?.toLowerCase() || '';
           break;
         case 'country':
           aVal = a.country_name?.toLowerCase() || '';
@@ -446,12 +442,6 @@ export default function ComposerListPage() {
                     onClick={() => handleSort('name')}
                   >
                     Name {sortColumn === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
-                  </th>
-                  <th 
-                    className="sortable"
-                    onClick={() => handleSort('period')}
-                  >
-                    Period {sortColumn === 'period' && (sortDirection === 'asc' ? '↑' : '↓')}
                   </th>
                   <th 
                     className="sortable"
