@@ -11,23 +11,28 @@
 }
 
 .data-table thead tr {
-  background: var(--color-background-header);
-  border-bottom: 2px solid var(--color-border);
+  background: linear-gradient(to bottom, var(--color-header), #a39450);
+  border-bottom: 3px solid var(--color-accent);
+  color: var(--color-background);
 }
 
 .data-table th {
   padding: var(--spacing-sm);
   text-align: left;
   font-weight: 600;
+  color: var(--color-background);
+  font-family: var(--font-primary);
 }
 
 .data-table th.sortable {
   cursor: pointer;
   user-select: none;
+  transition: all 0.3s ease;
 }
 
 .data-table th.sortable:hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(149, 5, 0, 0.2);
+  transform: scale(1.02);
 }
 
 .data-table th.align-center {
@@ -40,14 +45,20 @@
 
 .data-table tbody tr {
   border-bottom: 1px solid var(--color-border-light);
+  transition: all 0.3s ease;
 }
 
 .data-table tbody tr:hover {
   background: var(--color-background-alt);
+  box-shadow: inset 0 0 0 2px rgba(180, 161, 85, 0.2);
 }
 
 .data-table tbody tr.clickable {
   cursor: pointer;
+}
+
+.data-table tbody tr.clickable:hover {
+  background: rgba(180, 161, 85, 0.05);
 }
 
 .data-table td {
@@ -64,13 +75,15 @@
 }
 
 .data-table .link-primary {
-  color: var(--color-link);
-  font-weight: 500;
+  color: var(--color-accent);
+  font-weight: 600;
   text-decoration: none;
+  transition: all 0.3s ease;
 }
 
 .data-table .link-primary:hover {
-  color: var(--color-link-hover);
+  color: var(--color-accent-hover);
+  text-decoration: underline;
 }
 
 .data-table .link-secondary {
