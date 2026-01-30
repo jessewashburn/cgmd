@@ -29,6 +29,32 @@ cgmd/
 │   ├── utils.py          # Data cleaning utilities
 │   └── tests.py          # Unit and integration tests
 │
+├── frontend/             # React + TypeScript frontend
+│   ├── src/
+│   │   ├── components/   # Reusable UI components
+│   │   ├── pages/        # Page components
+│   │   │   ├── HomePage.tsx
+│   │   │   ├── ComposerListPage.tsx
+│   │   │   ├── ComposerDetailPage.tsx
+│   │   │   ├── WorkDetailPage.tsx
+│   │   │   └── SearchPage.tsx
+│   │   ├── services/     # API service layer
+│   │   │   ├── api.ts    # Axios configuration
+│   │   │   └── index.ts  # Service functions
+│   │   ├── types/        # TypeScript type definitions
+│   │   │   └── index.ts  # Model interfaces
+│   │   ├── utils/        # Utility functions
+│   │   ├── hooks/        # Custom React hooks
+│   │   ├── App.tsx       # Main app with routing
+│   │   └── main.tsx      # Entry point
+│   ├── public/           # Static assets
+│   ├── .env              # Development environment variables
+│   ├── .env.production   # Production environment variables
+│   ├── package.json      # NPM dependencies and scripts
+│   ├── tsconfig.json     # TypeScript configuration
+│   ├── vite.config.ts    # Vite build configuration
+│   └── README.md         # Frontend documentation
+│
 ├── docs/                 # Project documentation
 │   ├── API_DESIGN.md            # Original API design spec
 │   ├── API_DOCUMENTATION.md     # Complete API reference
@@ -46,10 +72,14 @@ cgmd/
 │
 ├── venv/                 # Python virtual environment (not in git)
 │
+├── .vscode/              # VS Code configuration
+│   └── settings.json     # Python interpreter settings
+│
 ├── .env                  # Environment variables (not in git)
 ├── .env.example          # Example environment configuration
 ├── .gitignore            # Git ignore rules
 ├── manage.py             # Django management script
+├── PROJECT_STRUCTURE.md  # This file
 ├── README.md             # Main project documentation
 └── requirements.txt      # Python dependencies
 

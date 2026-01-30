@@ -1,131 +1,108 @@
-# Classical Guitar Music Database - Backend
+# Classical Guitar Music Database
 
-Django REST API for the Classical Guitar Music Database project.
+A comprehensive database of classical guitar repertoire with Django REST API backend and React TypeScript frontend.
 
 ## 📁 Project Structure
-
-See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for detailed file organization.
 
 ```
 cgmd/
 ├── cgmd_backend/      # Django project settings
-├── music/             # Main app (models, views, serializers)
+├── music/             # Django app (models, views, serializers, admin)
+├── frontend/          # React + TypeScript frontend
 ├── docs/              # Documentation
 ├── data/              # Data files and schema
 ├── scripts/           # Setup and utility scripts
 └── README.md          # This file
 ```
 
+See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for detailed organization.
+
 ## Tech Stack
 
+### Backend
 - **Python**: 3.12.6
 - **Django**: 6.0.1
 - **Django REST Framework**: 3.16.1
-- **Database**: MySQL
+- **Database**: MySQL with utf8mb4
 - **API Documentation**: drf-spectacular (OpenAPI/Swagger)
 
-## Project Structure
+### Frontend
+- **React**: 18
+- **TypeScript**: 5.2+
+- **React Router**: 6
+- **Axios**: API client
+- **Vite**: Build tool
+- **Deployment**: GitHub Pages
 
-```
-cgmd/
-├── cgmd_backend/          # Django project settings
-├── music/                 # Main app for music data models
-├── manage.py             # Django management script
-├── requirements.txt      # Python dependencies
-├── .env                  # Environment variables (not in git)
-├── .env.example          # Example environment file
-└── README.md            # This file
-```
+## Quick Start
 
-## Setup Instructions
+### Backend Setup
 
-### 1. Create Virtual Environment
-
+1. **Create Virtual Environment**
 ```bash
 python -m venv venv
+source venv/bin/activate  # or venv\Scripts\activate on Windows
 ```
 
-### 2. Activate Virtual Environment
-
-**Windows:**
-```bash
-venv\Scripts\activate
-```
-
-**Mac/Linux:**
-```bash
-source venv/bin/activate
-```
-
-### 3. Install Dependencies
-
+2. **Install Dependencies**
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure Environment
-
-Copy `.env.example` to `.env` and update the database credentials:
-
+3. **Configure Environment**
 ```bash
 cp .env.example .env
+# Edit .env with your MySQL credentials
 ```
 
-Edit `.env` with your MySQL credentials.
-
-### 5. Create MySQL Database
-
-```bash
-mysql -u root -p
-```
-
-```sql
-CREATE DATABASE cgmd CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-EXIT;
-```
-
-Or use the provided schema:
+4. **Create Database**
 ```bash
 mysql -u root -p cgmd < data/database_schema.sql
 ```
 
-### 6. Run Migrations
-
+5. **Run Migrations**
 ```bash
-python manage.py makemigrations
 python manage.py migrate
-```
-
-### 7. Create Superuser
-
-```bash
 python manage.py createsuperuser
 ```
 
-### 8. Run Development Server
+6. **Import Data**
+```bash
+python manage.py import_sheerpluck
+```
 
+7. **Start Backend Server**
 ```bash
 python manage.py runserver
 ```
 
-The API will be available at: http://localhost:8000/api/
+Backend runs at: http://localhost:8000/api/
 
-The admin portal will be at: http://localhost:8000/admin/
+### Frontend Setup
 
-The API documentation will be at: http://localhost:8000/api/docs/
+1. **Install Dependencies**
+```bash
+cd frontend
+npm install
+```
+
+2. **Start Dev Server**
+```bash
+npm run dev
+```
+
+Frontend runs at: http://localhost:3000
 
 ## API Endpoints
 
-The REST API provides the following endpoints:
-
 - `/api/composers/` - List and search composers
-- `/api/works/` - List and search musical works
-- `/api/countries/` - List countries
-- `/api/instrumentations/` - List instrumentation categories
-- `/api/tags/` - List tags
+- `/api/works/` - List and search works
+- `/api/composers/{id}/` - Composer details
+- `/api/works/{id}/` - Work details
 - `/api/stats/summary/` - Database statistics
+- `/api/docs/` - Interactive API documentation (Swagger)
 
-See [API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md) for complete API reference.
+See [docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md) for complete reference.
 
 ## Database Models
 
@@ -181,3 +158,33 @@ python manage.py import_sheerpluck /path/to/data.csv
 - Database schema is designed for MySQL with full-text search support
 - Models include auto-normalization for searchable fields
 - Admin interface is configured with custom filtering and search
+
+## Phase 4 - Frontend Complete! ✅
+
+**Completed**:
+- React + TypeScript app with Vite
+- 5 pages: Home, Composers List/Detail, Work Detail, Search
+- API service layer with type-safe interfaces  
+- React Router configuration
+- GitHub Pages deployment ready
+
+**Next**: Test with backend, add styling, deploy to production
+
+## Development Commands
+
+**Backend**:
+```bash
+python manage.py runserver          # Start server
+python manage.py import_sheerpluck  # Import data
+python manage.py test               # Run tests
+```
+
+**Frontend**:
+```bash
+cd frontend
+npm run dev        # Dev server (localhost:3000)
+npm run build      # Production build
+npm run deploy     # Deploy to GitHub Pages
+```
+
+See [docs/ROADMAP.md](docs/ROADMAP.md) for full project plan.

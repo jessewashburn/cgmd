@@ -83,7 +83,7 @@ class Composer(models.Model):
     # Dates
     birth_year = models.SmallIntegerField(null=True, blank=True)
     death_year = models.SmallIntegerField(null=True, blank=True)
-    is_living = models.BooleanField(default=False)
+    is_living = models.BooleanField(default=False, null=True, blank=True)
     
     # Location
     country = models.ForeignKey(Country, on_delete=models.SET_NULL, null=True, blank=True)

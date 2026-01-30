@@ -234,6 +234,11 @@ class Command(BaseCommand):
                 self.stats['composers_updated'] += 1
         else:
             # Create new composer
+            # Calculate is_living: True if no death year and born after 1900
+            is_living = False
+            if death_year is None and birth_year and birth_year > 1900:
+                is_living = True
+            
             composer = Composer.objects.create(
                 full_name=full_name,
                 first_name=first_name,
@@ -241,7 +246,7 @@ class Command(BaseCommand):
                 name_normalized=self._normalize_string(full_name),
                 birth_year=birth_year,
                 death_year=death_year,
-                is_living=(death_year is None and birth_year and birth_year > 1900),
+                is_living=is_living,
                 country=country,
                 data_source=self.data_source,
                 needs_review=True,

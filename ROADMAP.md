@@ -67,7 +67,7 @@ A public, searchable classical guitar database built to preserve and share class
 
 ---
 
-## Phase 3: Backend Development ✅ COMPLETED
+## Phase 3: Backend Development 🚧 IN PROGRESS
 
 ### 3.1 Django Project Setup ✅ COMPLETED
 - [x] Initialize Django project
@@ -117,16 +117,16 @@ A public, searchable classical guitar database built to preserve and share class
 - [ ] Add audit logging for admin changes
 - [ ] Create custom admin views for data quality reports
 
-### 3.6 Testing ✅ COMPLETED
+### 3.6 Testing
 - [x] Write unit tests for models
-- [x] Write tests for API endpoints
+- [ ] Write tests for API endpoints
 - [x] Test data import pipeline
 - [x] Test admin portal functionality
-- [ ] Load testing for API performance (deferred to production)
+- [ ] Load testing for API performance
 
 ---
 
-## Phase 4: Frontend Development 🚧 IN PROGRESS
+## Phase 4: Frontend Development
 
 ### 4.1 React Project Setup
 - [ ] Initialize React app with TypeScript (Vite or Create React App)
