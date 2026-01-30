@@ -1,0 +1,116 @@
+/* ComposerDetailPage Styles */
+
+.composer-detail-page {
+  padding: var(--spacing-lg);
+  max-width: var(--max-width-content);
+  margin: 0 auto;
+}
+
+.composer-detail-header {
+  margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.composer-detail-header h1 {
+  font-size: 2.5rem;
+  margin-bottom: var(--spacing-sm);
+  color: var(--color-text-primary);
+}
+
+.composer-lifespan {
+  font-size: 1.2rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.composer-info {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--spacing-sm) var(--spacing-md);
+  margin-top: var(--spacing-md);
+}
+
+.composer-info-label {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.composer-info-value {
+  color: var(--color-text-secondary);
+}
+
+.composer-biography {
+  margin-top: var(--spacing-md);
+  line-height: 1.8;
+  color: var(--color-text-secondary);
+  background: #f9f9f9;
+  padding: var(--spacing-md);
+  border-radius: var(--border-radius);
+}
+
+.works-section {
+  margin-top: var(--spacing-xl);
+}
+
+.works-section h2 {
+  font-size: 1.8rem;
+  margin-bottom: var(--spacing-md);
+  color: var(--color-text-primary);
+}
+
+.works-grid {
+  display: grid;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-md);
+}
+
+.work-card {
+  padding: var(--spacing-md);
+  background: white;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--color-border);
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.work-card:hover {
+  background: #f9f9f9;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.work-card h3 {
+  margin: 0 0 var(--spacing-sm) 0;
+  color: var(--color-primary);
+  font-size: 1.1rem;
+}
+
+.work-card-info {
+  margin: 0.25rem 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.work-catalog {
+  color: #666;
+}
+
+.work-instrumentation {
+  color: #888;
+}
+
+.back-link {
+  margin-top: var(--spacing-xl);
+  display: inline-block;
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.back-link:hover {
+  color: var(--color-primary-dark);
+  text-decoration: underline;
+}
