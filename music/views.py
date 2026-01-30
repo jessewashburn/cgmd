@@ -181,9 +181,16 @@ class WorkViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         queryset = super().get_queryset()
         
+        # Filter by instrumentation (using instrumentation name)
+        instrumentation = self.request.query_params.get('instrumentation')
+        if instrumentation:
+            queryset = queryset.filter(
+                instrumentation_category__name=instrumentation
+            )
+        
         # Filter by composition year range
-        year_min = self.request.query_params.get('year_min')
-        year_max = self.request.query_params.get('year_max')
+        year_min = self.request.query_params.get('composition_year_min')
+        year_max = self.request.query_params.get('composition_year_max')
         
         if year_min:
             queryset = queryset.filter(composition_year__gte=year_min)

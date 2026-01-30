@@ -30,6 +30,10 @@ export default function HomePage() {
   const [totalCount, setTotalCount] = useState(0);
   const [sortColumn, setSortColumn] = useState<'title' | 'composer' | 'instrumentation' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [compositionYearRange, setCompositionYearRange] = useState<[number, number]>([1400, 2025]);
+  const [selectedInstrumentation, setSelectedInstrumentation] = useState<string>('');
+  const [instrumentations, setInstrumentations] = useState<string[]>([]);
   const debouncedSearch = useDebounce(searchQuery, 300);
   
   const pageSize = 200;
@@ -125,7 +129,65 @@ export default function HomePage() {
 
   useEffect(() => {
     fetchWorks();
-  }, [debouncedSearch, currentPage]);
+  }, [debouncedSearch, currentPage, compositionYearRange, selectedInstrumentation]);
+
+  // Fetch instrumentation categories
+  useEffect(() => {
+    const fetchInstrumentations = async () => {
+      try {
+        const response = await api.get('/instrumentations/', {
+          params: { page_size: 500 }
+        });
+        const categories = response.data.results || response.data;
+        
+        // Filter for real instrumentation categories (not titles or junk)
+        const validInstrumentations = categories
+          .map((cat: any) => cat.name)
+          .filter((name: string) => {
+            if (!name || name.length < 3) return false;
+            
+            const lower = name.toLowerCase();
+            
+            // Include if it contains key instrumentation terms
+            const hasValidTerms = 
+              lower.includes('guitar') ||
+              lower.includes('ensemble') ||
+              lower.includes('orchestra') ||
+              lower.includes('voice') ||
+              lower.includes('choir') ||
+              lower.includes('percussion') ||
+              lower.includes('strings') ||
+              lower.includes('wind') ||
+              lower.includes('brass') ||
+              (lower === 'solo') ||
+              (lower === 'duo') ||
+              (lower === 'trio') ||
+              (lower === 'quartet') ||
+              (lower === 'quintet');
+            
+            // Exclude if it looks like a title (has certain patterns)
+            const looksLikeTitle = 
+              lower.includes('op.') ||
+              lower.includes('for ') ||
+              lower.includes(' - ') ||
+              lower.includes('bagatelle') ||
+              lower.includes('study') ||
+              lower.includes('etude') ||
+              name.includes('#') ||
+              /^\d+$/.test(name) || // Just a number
+              name.length > 50; // Too long to be an instrumentation
+            
+            return hasValidTerms && !looksLikeTitle;
+          })
+          .sort((a: string, b: string) => a.localeCompare(b));
+        
+        setInstrumentations(validInstrumentations);
+      } catch (err) {
+        console.error('Error fetching instrumentations:', err);
+      }
+    };
+    fetchInstrumentations();
+  }, []);
 
   const fetchWorks = async () => {
     setLoading(true);
@@ -138,10 +200,21 @@ export default function HomePage() {
         ordering: 'title',
       };
 
-      // Filter for guitar works - you may need to adjust the category ID
-      // For now, I'm searching for works with "guitar" in instrumentation
       if (debouncedSearch) {
         params.search = debouncedSearch;
+      }
+
+      // Add instrumentation filter if selected
+      if (selectedInstrumentation) {
+        params.instrumentation = selectedInstrumentation;
+      }
+
+      // Add composition year filters if set
+      if (compositionYearRange[0] > 1400) {
+        params.composition_year_min = compositionYearRange[0];
+      }
+      if (compositionYearRange[1] < 2025) {
+        params.composition_year_max = compositionYearRange[1];
       }
 
       const response = await api.get('/works/', { params });
@@ -161,7 +234,7 @@ export default function HomePage() {
     <div className="home-page">
       <header className="page-header">
         <h1>Classical Guitar Music Database</h1>
-        <p>Browse {totalCount.toLocaleString()} guitar works alphabetically</p>
+        <p>Browse {(totalCount || 0).toLocaleString()} guitar works alphabetically</p>
       </header>
 
       {/* Search Bar */}
@@ -178,12 +251,82 @@ export default function HomePage() {
         />
       </div>
 
-      {/* Quick Links */}
-      <div className="quick-links">
-        <Link to="/">Browse Composers</Link>
-        <span className="separator">|</span>
-        <Link to="/search">Advanced Search</Link>
+      {/* Advanced Filters Toggle */}
+      <div className="advanced-filters-toggle">
+        <button
+          className="toggle-button"
+          onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+        >
+          {showAdvancedFilters ? '▲' : '▼'} Advanced Filters
+        </button>
       </div>
+
+      {/* Advanced Filters Panel */}
+      {showAdvancedFilters && (
+        <div className="advanced-filters-panel">
+          {/* Composition Year Range Slider */}
+          <div className="filter-group">
+            <label className="filter-label">
+              Composition Year Range: {compositionYearRange[0]} - {compositionYearRange[1]}
+            </label>
+            <div className="slider-container">
+              <input
+                type="range"
+                className="range-slider"
+                min="1400"
+                max="2025"
+                value={compositionYearRange[0]}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  setCompositionYearRange([Math.min(val, compositionYearRange[1]), compositionYearRange[1]]);
+                }}
+              />
+              <input
+                type="range"
+                className="range-slider"
+                min="1400"
+                max="2025"
+                value={compositionYearRange[1]}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  setCompositionYearRange([compositionYearRange[0], Math.max(val, compositionYearRange[0])]);
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Instrumentation Dropdown */}
+          <div className="filter-group">
+            <label className="filter-label">Instrumentation</label>
+            <select
+              className="filter-select"
+              value={selectedInstrumentation}
+              onChange={(e) => {
+                setSelectedInstrumentation(e.target.value);
+                setCurrentPage(1);
+              }}
+            >
+              <option value="">All Instrumentations</option>
+              {instrumentations.map((inst) => (
+                <option key={inst} value={inst}>
+                  {inst}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Clear Filters Button */}
+          <button
+            className="clear-filters-button"
+            onClick={() => {
+              setCompositionYearRange([1400, 2025]);
+              setSelectedInstrumentation('');
+            }}
+          >
+            Clear Filters
+          </button>
+        </div>
+      )}
 
       {/* Loading State */}
       {loading && (
