@@ -133,7 +133,7 @@ export default function HomePage() {
 
       {/* Quick Links */}
       <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginBottom: '2rem' }}>
-        <Link to="/composers" style={{ textDecoration: 'none', color: '#4CAF50', fontWeight: '500' }}>
+        <Link to="/" style={{ textDecoration: 'none', color: '#4CAF50', fontWeight: '500' }}>
           Browse Composers
         </Link>
         <span style={{ color: '#ddd' }}>|</span>

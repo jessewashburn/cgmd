@@ -2,8 +2,17 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { useDebounce } from '../hooks/useDebounce';
-import DataTable, { Column } from '../components/DataTable';
 import Pagination from '../components/Pagination';
+import ExpandableComposerRow from '../components/ExpandableComposerRow';
+
+interface Work {
+  id: number;
+  title: string;
+  instrumentation_category: {
+    id: number;
+    name: string;
+  } | null;
+}
 
 interface Composer {
   id: number;
@@ -32,44 +41,6 @@ export default function ComposerListPage() {
   
   const pageSize = 200;
 
-  const columns: Column<Composer>[] = [
-    {
-      header: 'Name',
-      accessor: (composer) => (
-        <Link
-          to={`/composers/${composer.id}`}
-          style={{ textDecoration: 'none', color: '#1976d2', fontWeight: '500' }}
-        >
-          {composer.full_name}
-        </Link>
-      ),
-    },
-    {
-      header: 'Period',
-      accessor: (composer) => composer.period || '-',
-    },
-    {
-      header: 'Country',
-      accessor: (composer) => composer.country?.name || '-',
-    },
-    {
-      header: 'Years',
-      accessor: (composer) => {
-        const birth = composer.birth_year || '?';
-        const death = composer.death_year || (composer.is_living ? 'present' : '?');
-        return `${birth} - ${death}`;
-      },
-      align: 'center',
-      width: '150px',
-    },
-    {
-      header: 'Works',
-      accessor: (composer) => composer.work_count,
-      align: 'center',
-      width: '100px',
-    },
-  ];
-
   useEffect(() => {
     fetchComposers();
   }, [debouncedSearch, currentPage]);
@@ -97,6 +68,16 @@ export default function ComposerListPage() {
       setError('Failed to load composers. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadComposerWorks = async (composerId: number): Promise<Work[]> => {
+    try {
+      const response = await api.get(`/composers/${composerId}/works/`);
+      return response.data.results || response.data;
+    } catch (error) {
+      console.error('Error loading composer works:', error);
+      return [];
     }
   };
 
@@ -138,8 +119,8 @@ export default function ComposerListPage() {
 
       {/* Quick Links */}
       <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginBottom: '2rem' }}>
-        <Link to="/" style={{ textDecoration: 'none', color: '#4CAF50', fontWeight: '500' }}>
-          ← Back to Works
+        <Link to="/works" style={{ textDecoration: 'none', color: '#4CAF50', fontWeight: '500' }}>
+          Browse Works
         </Link>
         <span style={{ color: '#ddd' }}>|</span>
         <Link to="/search" style={{ textDecoration: 'none', color: '#4CAF50', fontWeight: '500' }}>
@@ -169,17 +150,43 @@ export default function ComposerListPage() {
       )}
 
       {/* Composers List */}
-      {!error && (
+      {!error && !loading && (
         <>
-          <DataTable
-            data={composers}
-            columns={columns}
-            getRowKey={(composer) => composer.id}
-            loading={loading}
-            emptyMessage="No composers found. Try adjusting your search."
-          />
+          <div style={{ marginBottom: '2rem', overflowX: 'auto' }}>
+            <table
+              style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+                background: 'white',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              }}
+            >
+              <thead>
+                <tr style={{ background: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
+                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600' }}>Name</th>
+                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600' }}>Period</th>
+                  <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600' }}>Country</th>
+                  <th style={{ padding: '1rem', textAlign: 'center', fontWeight: '600', width: '150px' }}>
+                    Years
+                  </th>
+                  <th style={{ padding: '1rem', textAlign: 'center', fontWeight: '600', width: '100px' }}>
+                    Works
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {composers.map((composer) => (
+                  <ExpandableComposerRow
+                    key={composer.id}
+                    composer={composer}
+                    onLoadWorks={loadComposerWorks}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-          {!loading && composers.length > 0 && (
+          {composers.length > 0 && (
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
@@ -189,6 +196,20 @@ export default function ComposerListPage() {
             />
           )}
         </>
+      )}
+
+      {/* Loading State */}
+      {loading && (
+        <div style={{ textAlign: 'center', padding: '3rem', color: '#666' }}>
+          <p>Loading composers...</p>
+        </div>
+      )}
+
+      {/* No Results */}
+      {!loading && !error && composers.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '3rem', color: '#666' }}>
+          <p>No composers found. Try adjusting your search.</p>
+        </div>
       )}
     </div>
   );

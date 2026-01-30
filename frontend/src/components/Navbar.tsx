@@ -5,7 +5,9 @@ export default function Navbar() {
 
   const isActive = (path: string) => {
     if (path === '/' && location.pathname === '/') return true;
-    if (path !== '/' && location.pathname.startsWith(path)) return true;
+    if (path === '/composers' && location.pathname === '/') return true; // Home is composers
+    if (path === '/works' && location.pathname === '/works') return true;
+    if (path !== '/' && path !== '/works' && location.pathname.startsWith(path)) return true;
     return false;
   };
 
@@ -55,11 +57,11 @@ export default function Navbar() {
 
         {/* Navigation Links */}
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <Link to="/" style={linkStyle('/')}>
-            Works
-          </Link>
-          <Link to="/composers" style={linkStyle('/composers')}>
+          <Link to="/" style={linkStyle('/composers')}>
             Composers
+          </Link>
+          <Link to="/works" style={linkStyle('/works')}>
+            Works
           </Link>
           <Link to="/about" style={linkStyle('/about')}>
             About

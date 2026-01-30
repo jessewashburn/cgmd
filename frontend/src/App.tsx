@@ -14,7 +14,8 @@ function App() {
       <div className="App">
         <Navbar />
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<ComposerListPage />} />
+          <Route path="/works" element={<HomePage />} />
           <Route path="/composers" element={<ComposerListPage />} />
           <Route path="/composers/:id" element={<ComposerDetailPage />} />
           <Route path="/works/:id" element={<WorkDetailPage />} />
