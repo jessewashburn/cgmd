@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { useDebounce } from '../hooks/useDebounce';
 import { useInstrumentations } from '../hooks/useInstrumentations';
+import { useCountries } from '../hooks/useCountries';
 import DataTable, { Column } from '../components/DataTable';
 import Pagination from '../components/Pagination';
 import '../styles/shared/ListPage.css';
@@ -36,7 +37,7 @@ export default function WorkListPage() {
   const [selectedInstrumentation, setSelectedInstrumentation] = useState<string>('');
   const instrumentations = useInstrumentations();
   const [selectedCountry, setSelectedCountry] = useState<string>('');
-  const [countries, setCountries] = useState<string[]>([]);
+  const countries = useCountries();
   const debouncedSearch = useDebounce(searchQuery, 300);
   
   const pageSize = 200;
@@ -133,25 +134,6 @@ export default function WorkListPage() {
   useEffect(() => {
     fetchWorks();
   }, [debouncedSearch, currentPage, compositionYearRange, selectedInstrumentation, selectedCountry]);
-
-  // Fetch countries
-  useEffect(() => {
-    const fetchCountries = async () => {
-      try {
-        const response = await api.get('/countries/', {
-          params: { page_size: 500 }
-        });
-        const countryList = response.data.results || response.data;
-        const countryNames = countryList
-          .map((country: any) => country.name)
-          .sort((a: string, b: string) => a.localeCompare(b));
-        setCountries(countryNames);
-      } catch (err) {
-        console.error('Error fetching countries:', err);
-      }
-    };
-    fetchCountries();
-  }, []);
 
   const fetchWorks = async () => {
     setLoading(true);

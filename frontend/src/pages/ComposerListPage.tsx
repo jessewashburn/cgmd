@@ -3,6 +3,7 @@ import Fuse from 'fuse.js';
 import api from '../services/api';
 import { useDebounce } from '../hooks/useDebounce';
 import { useInstrumentations } from '../hooks/useInstrumentations';
+import { useCountries } from '../hooks/useCountries';
 import Pagination from '../components/Pagination';
 import ExpandableComposerRow from '../components/ExpandableComposerRow';
 import '../styles/shared/ListPage.css';
@@ -42,7 +43,7 @@ export default function ComposerListPage() {
   const [selectedInstrumentation, setSelectedInstrumentation] = useState<string>('');
   const instrumentations = useInstrumentations();
   const [selectedCountry, setSelectedCountry] = useState<string>('');
-  const [countries, setCountries] = useState<string[]>([]);
+  const countries = useCountries();
   const debouncedSearch = useDebounce(searchQuery, 300);
   
   const pageSize = 200;
@@ -83,25 +84,6 @@ export default function ComposerListPage() {
     // Preload after a short delay to not block initial render
     const timer = setTimeout(preloadComposers, 500);
     return () => clearTimeout(timer);
-  }, []);
-
-  // Fetch countries
-  useEffect(() => {
-    const fetchCountries = async () => {
-      try {
-        const response = await api.get('/countries/', {
-          params: { page_size: 500 }
-        });
-        const countryList = response.data.results || response.data;
-        const countryNames = countryList
-          .map((country: any) => country.name)
-          .sort((a: string, b: string) => a.localeCompare(b));
-        setCountries(countryNames);
-      } catch (err) {
-        console.error('Error fetching countries:', err);
-      }
-    };
-    fetchCountries();
   }, []);
 
   const fetchComposers = async () => {
