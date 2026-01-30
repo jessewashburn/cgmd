@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import Fuse from 'fuse.js';
 import api from '../services/api';
 import { useDebounce } from '../hooks/useDebounce';
 import Pagination from '../components/Pagination';
@@ -17,21 +18,17 @@ interface Work {
 interface Composer {
   id: number;
   full_name: string;
-  first_name: string;
-  last_name: string;
   birth_year: number | null;
   death_year: number | null;
   is_living: boolean;
-  period: string;
-  country: {
-    id: number;
-    name: string;
-  } | null;
+  period: string | null;
+  country_name: string | null;
   work_count: number;
 }
 
 export default function ComposerListPage() {
   const [composers, setComposers] = useState<Composer[]>([]);
+  const [allComposers, setAllComposers] = useState<Composer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -40,6 +37,15 @@ export default function ComposerListPage() {
   const debouncedSearch = useDebounce(searchQuery, 300);
   
   const pageSize = 200;
+
+  // Fuse.js configuration for fuzzy search
+  const fuseOptions = {
+    keys: ['full_name'], // Only search on full_name since that's what the API provides
+    threshold: 0.4, // Lower = stricter (0.0 = exact, 1.0 = match anything) - 0.4 catches typos
+    includeScore: true,
+    minMatchCharLength: 2,
+    ignoreLocation: true,
+  };
 
   useEffect(() => {
     fetchComposers();
@@ -50,19 +56,44 @@ export default function ComposerListPage() {
     setError(null);
     
     try {
-      const params: any = {
-        page: currentPage,
-        page_size: pageSize,
-        ordering: 'last_name,first_name',
-      };
-
       if (debouncedSearch) {
-        params.search = debouncedSearch;
-      }
+        // Always use fuzzy search for queries to catch typos
+        // Load all composers if not already loaded
+        if (allComposers.length === 0) {
+          const response = await api.get('/composers/', {
+            params: { page_size: 20000, ordering: 'last_name,first_name' },
+          });
+          const loadedComposers = response.data.results || response.data;
+          setAllComposers(loadedComposers);
+          
+          // Perform fuzzy search
+          const fuse = new Fuse<Composer>(loadedComposers, fuseOptions);
+          const results = fuse.search(debouncedSearch);
+          const matches: Composer[] = results.map((result) => result.item);
+          
+          setComposers(matches.slice(0, pageSize));
+          setTotalCount(matches.length);
+        } else {
+          // Use already loaded composers for fuzzy search
+          const fuse = new Fuse<Composer>(allComposers, fuseOptions);
+          const results = fuse.search(debouncedSearch);
+          const matches: Composer[] = results.map((result) => result.item);
+          
+          setComposers(matches.slice(0, pageSize));
+          setTotalCount(matches.length);
+        }
+      } else {
+        // No search query - use regular pagination
+        const params: any = {
+          page: currentPage,
+          page_size: pageSize,
+          ordering: 'last_name,first_name',
+        };
 
-      const response = await api.get('/composers/', { params });
-      setComposers(response.data.results || response.data);
-      setTotalCount(response.data.count || response.data.length);
+        const response = await api.get('/composers/', { params });
+        setComposers(response.data.results || response.data);
+        setTotalCount(response.data.count || response.data.length);
+      }
     } catch (err) {
       console.error('Error fetching composers:', err);
       setError('Failed to load composers. Please try again.');
@@ -90,7 +121,7 @@ export default function ComposerListPage() {
           Composers
         </h1>
         <p style={{ fontSize: '1rem', color: '#666' }}>
-          Browse {totalCount.toLocaleString()} classical guitar composers
+          Browse {(totalCount || 0).toLocaleString()} classical guitar composers
         </p>
       </header>
 

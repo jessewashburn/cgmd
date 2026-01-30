@@ -16,11 +16,8 @@ interface Composer {
   birth_year: number | null;
   death_year: number | null;
   is_living: boolean;
-  period: string;
-  country: {
-    id: number;
-    name: string;
-  } | null;
+  period: string | null;
+  country_name: string | null;
   work_count: number;
 }
 
@@ -81,7 +78,7 @@ export default function ExpandableComposerRow({ composer, onLoadWorks }: Expanda
           {composer.period || '-'}
         </td>
         <td style={{ padding: '1rem', textAlign: 'left', color: '#666' }}>
-          {composer.country?.name || '-'}
+          {composer.country_name || '-'}
         </td>
         <td style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
           {birth} - {death}
