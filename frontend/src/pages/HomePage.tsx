@@ -34,6 +34,8 @@ export default function HomePage() {
   const [compositionYearRange, setCompositionYearRange] = useState<[number, number]>([1400, 2025]);
   const [selectedInstrumentation, setSelectedInstrumentation] = useState<string>('');
   const [instrumentations, setInstrumentations] = useState<string[]>([]);
+  const [selectedCountry, setSelectedCountry] = useState<string>('');
+  const [countries, setCountries] = useState<string[]>([]);
   const debouncedSearch = useDebounce(searchQuery, 300);
   
   const pageSize = 200;
@@ -129,7 +131,7 @@ export default function HomePage() {
 
   useEffect(() => {
     fetchWorks();
-  }, [debouncedSearch, currentPage, compositionYearRange, selectedInstrumentation]);
+  }, [debouncedSearch, currentPage, compositionYearRange, selectedInstrumentation, selectedCountry]);
 
   // Fetch instrumentation categories
   useEffect(() => {
@@ -189,6 +191,25 @@ export default function HomePage() {
     fetchInstrumentations();
   }, []);
 
+  // Fetch countries
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const response = await api.get('/countries/', {
+          params: { page_size: 500 }
+        });
+        const countryList = response.data.results || response.data;
+        const countryNames = countryList
+          .map((country: any) => country.name)
+          .sort((a: string, b: string) => a.localeCompare(b));
+        setCountries(countryNames);
+      } catch (err) {
+        console.error('Error fetching countries:', err);
+      }
+    };
+    fetchCountries();
+  }, []);
+
   const fetchWorks = async () => {
     setLoading(true);
     setError(null);
@@ -207,6 +228,11 @@ export default function HomePage() {
       // Add instrumentation filter if selected
       if (selectedInstrumentation) {
         params.instrumentation = selectedInstrumentation;
+      }
+
+      // Add country filter if selected
+      if (selectedCountry) {
+        params.composer_country = selectedCountry;
       }
 
       // Add composition year filters if set
@@ -315,12 +341,33 @@ export default function HomePage() {
             </select>
           </div>
 
+          {/* Country Dropdown */}
+          <div className="filter-group">
+            <label className="filter-label">Composer Country</label>
+            <select
+              className="filter-select"
+              value={selectedCountry}
+              onChange={(e) => {
+                setSelectedCountry(e.target.value);
+                setCurrentPage(1);
+              }}
+            >
+              <option value="">All Countries</option>
+              {countries.map((country) => (
+                <option key={country} value={country}>
+                  {country}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Clear Filters Button */}
           <button
             className="clear-filters-button"
             onClick={() => {
               setCompositionYearRange([1400, 2025]);
               setSelectedInstrumentation('');
+              setSelectedCountry('');
             }}
           >
             Clear Filters

@@ -40,6 +40,8 @@ export default function ComposerListPage() {
   const [birthYearRange, setBirthYearRange] = useState<[number, number]>([1400, 2025]);
   const [selectedInstrumentation, setSelectedInstrumentation] = useState<string>('');
   const [instrumentations, setInstrumentations] = useState<string[]>([]);
+  const [selectedCountry, setSelectedCountry] = useState<string>('');
+  const [countries, setCountries] = useState<string[]>([]);
   const debouncedSearch = useDebounce(searchQuery, 300);
   
   const pageSize = 200;
@@ -59,7 +61,7 @@ export default function ComposerListPage() {
 
   useEffect(() => {
     fetchComposers();
-  }, [debouncedSearch, currentPage, birthYearRange, selectedInstrumentation]);
+  }, [debouncedSearch, currentPage, birthYearRange, selectedInstrumentation, selectedCountry]);
 
   // Pre-load all composers in the background for instant fuzzy search
   useEffect(() => {
@@ -141,6 +143,25 @@ export default function ComposerListPage() {
     fetchInstrumentations();
   }, []);
 
+  // Fetch countries
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const response = await api.get('/countries/', {
+          params: { page_size: 500 }
+        });
+        const countryList = response.data.results || response.data;
+        const countryNames = countryList
+          .map((country: any) => country.name)
+          .sort((a: string, b: string) => a.localeCompare(b));
+        setCountries(countryNames);
+      } catch (err) {
+        console.error('Error fetching countries:', err);
+      }
+    };
+    fetchCountries();
+  }, []);
+
   const fetchComposers = async () => {
     setLoading(true);
     setError(null);
@@ -185,6 +206,11 @@ export default function ComposerListPage() {
         // Add instrumentation filter if selected
         if (selectedInstrumentation) {
           params.instrumentation = selectedInstrumentation;
+        }
+        
+        // Add country filter if selected
+        if (selectedCountry) {
+          params.country_name = selectedCountry;
         }
         
         // Add birth year filters if set
@@ -265,7 +291,7 @@ export default function ComposerListPage() {
     });
     
     return sorted;
-  }, [composers, sortColumn, sortDirection, birthYearRange, selectedInstrumentation, allComposers.length]);
+  }, [composers, sortColumn, sortDirection, birthYearRange, selectedInstrumentation, selectedCountry, allComposers.length]);
 
   const loadComposerWorks = async (composerId: number): Promise<Work[]> => {
     try {
@@ -364,12 +390,33 @@ export default function ComposerListPage() {
             </select>
           </div>
 
+          {/* Country Dropdown */}
+          <div className="filter-group">
+            <label className="filter-label">Country</label>
+            <select
+              className="filter-select"
+              value={selectedCountry}
+              onChange={(e) => {
+                setSelectedCountry(e.target.value);
+                setCurrentPage(1);
+              }}
+            >
+              <option value="">All Countries</option>
+              {countries.map((country) => (
+                <option key={country} value={country}>
+                  {country}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Clear Filters Button */}
           <button
             className="clear-filters-button"
             onClick={() => {
               setBirthYearRange([1400, 2025]);
               setSelectedInstrumentation('');
+              setSelectedCountry('');
             }}
           >
             Clear Filters

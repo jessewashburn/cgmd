@@ -188,6 +188,13 @@ class WorkViewSet(viewsets.ReadOnlyModelViewSet):
                 instrumentation_category__name=instrumentation
             )
         
+        # Filter by composer country
+        composer_country = self.request.query_params.get('composer_country')
+        if composer_country:
+            queryset = queryset.filter(
+                composer__country__name=composer_country
+            )
+        
         # Filter by composition year range
         year_min = self.request.query_params.get('composition_year_min')
         year_max = self.request.query_params.get('composition_year_max')
