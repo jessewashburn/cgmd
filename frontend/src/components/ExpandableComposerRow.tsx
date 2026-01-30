@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import '../styles/components/ExpandableComposerRow.css';
 
 interface Work {
   id: number;
@@ -52,75 +53,57 @@ export default function ExpandableComposerRow({ composer, onLoadWorks }: Expanda
   return (
     <>
       <tr
-        style={{
-          borderBottom: '1px solid #eee',
-          cursor: composer.work_count > 0 ? 'pointer' : 'default',
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = '#f9f9f9')}
-        onMouseLeave={(e) => (e.currentTarget.style.background = 'white')}
+        className={`composer-row ${composer.work_count > 0 ? '' : 'non-clickable'}`}
         onClick={composer.work_count > 0 ? handleToggle : undefined}
       >
-        <td style={{ padding: '1rem', color: '#666' }}>
+        <td>
           {composer.work_count > 0 && (
-            <span style={{ marginRight: '0.5rem', fontSize: '0.8rem' }}>
+            <span className="expand-icon">
               {isExpanded ? '▼' : '▶'}
             </span>
           )}
           <Link
             to={`/composers/${composer.id}`}
-            style={{ textDecoration: 'none', color: '#1976d2', fontWeight: '500' }}
+            className="composer-name-link"
             onClick={(e) => e.stopPropagation()}
           >
             {composer.full_name}
           </Link>
         </td>
-        <td style={{ padding: '1rem', textAlign: 'left', color: '#666' }}>
+        <td className="align-left">
           {composer.period || '-'}
         </td>
-        <td style={{ padding: '1rem', textAlign: 'left', color: '#666' }}>
+        <td className="align-left">
           {composer.country_name || '-'}
         </td>
-        <td style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
+        <td className="align-center">
           {birth} - {death}
         </td>
-        <td style={{ padding: '1rem', textAlign: 'center', color: '#666' }}>
+        <td className="align-center">
           {composer.work_count}
         </td>
       </tr>
       {isExpanded && (
-        <tr>
-          <td colSpan={5} style={{ padding: 0, background: '#f9f9f9' }}>
-            <div style={{ padding: '1rem 2rem' }}>
+        <tr className="expanded-works-row">
+          <td colSpan={5}>
+            <div className="expanded-works-content">
               {loadingWorks ? (
-                <p style={{ color: '#666', fontStyle: 'italic' }}>Loading works...</p>
+                <p className="loading-works">Loading works...</p>
               ) : works.length > 0 ? (
-                <div style={{ display: 'grid', gap: '0.5rem' }}>
+                <div className="works-list">
                   {works.map((work) => (
-                    <div
-                      key={work.id}
-                      style={{
-                        padding: '0.5rem',
-                        background: 'white',
-                        borderRadius: '4px',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <Link
-                        to={`/works/${work.id}`}
-                        style={{ textDecoration: 'none', color: '#1976d2' }}
-                      >
+                    <div key={work.id} className="work-item">
+                      <Link to={`/works/${work.id}`} className="work-link">
                         {work.title}
                       </Link>
-                      <span style={{ fontSize: '0.9rem', color: '#666' }}>
+                      <span className="work-instrumentation">
                         {work.instrumentation_category?.name || '-'}
                       </span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p style={{ color: '#666', fontStyle: 'italic' }}>No works found</p>
+                <p className="no-works">No works found</p>
               )}
             </div>
           </td>

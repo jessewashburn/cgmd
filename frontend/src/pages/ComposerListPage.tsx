@@ -4,6 +4,7 @@ import api from '../services/api';
 import { useDebounce } from '../hooks/useDebounce';
 import Pagination from '../components/Pagination';
 import ExpandableComposerRow from '../components/ExpandableComposerRow';
+import '../styles/pages/ComposerListPage.css';
 
 interface Work {
   id: number;
@@ -279,52 +280,31 @@ export default function ComposerListPage() {
   const totalPages = Math.ceil(totalCount / pageSize);
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
-      <header style={{ textAlign: 'center', marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>
-          Composers
-        </h1>
-        <p style={{ fontSize: '1rem', color: '#666' }}>
-          Browse {(totalCount || 0).toLocaleString()} classical guitar composers
-        </p>
+    <div className="composer-list-page">
+      <header className="page-header">
+        <h1>Composers</h1>
+        <p>Browse {(totalCount || 0).toLocaleString()} classical guitar composers</p>
       </header>
 
       {/* Search Bar */}
-      <div style={{ marginBottom: '1rem', maxWidth: '800px', margin: '0 auto 1rem' }}>
+      <div className="search-container">
         <input
           type="text"
+          className="search-input"
           placeholder="Search for composers..."
           value={searchQuery}
           onChange={(e) => {
             setSearchQuery(e.target.value);
             setCurrentPage(1);
           }}
-          style={{
-            width: '100%',
-            padding: '1rem',
-            fontSize: '1rem',
-            border: '2px solid #ddd',
-            borderRadius: '8px',
-            outline: 'none',
-          }}
-          onFocus={(e) => (e.target.style.borderColor = '#4CAF50')}
-          onBlur={(e) => (e.target.style.borderColor = '#ddd')}
         />
       </div>
 
       {/* Advanced Filters Toggle */}
-      <div style={{ maxWidth: '800px', margin: '0 auto 1rem', textAlign: 'center' }}>
+      <div className="advanced-filters-toggle">
         <button
+          className="toggle-button"
           onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#4CAF50',
-            cursor: 'pointer',
-            fontSize: '0.9rem',
-            fontWeight: '500',
-            padding: '0.5rem',
-          }}
         >
           {showAdvancedFilters ? '▲' : '▼'} Advanced Filters
         </button>
@@ -332,31 +312,16 @@ export default function ComposerListPage() {
 
       {/* Advanced Filters Panel */}
       {showAdvancedFilters && (
-        <div
-          style={{
-            maxWidth: '800px',
-            margin: '0 auto 2rem',
-            padding: '1.5rem',
-            background: '#f9f9f9',
-            borderRadius: '8px',
-            border: '1px solid #ddd',
-          }}
-        >
+        <div className="advanced-filters-panel">
           {/* Birth Year Range Slider */}
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: '600',
-                color: '#333',
-              }}
-            >
+          <div className="filter-group">
+            <label className="filter-label">
               Birth Year Range: {birthYearRange[0]} - {birthYearRange[1]}
             </label>
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <div className="slider-container">
               <input
                 type="range"
+                className="range-slider"
                 min="1400"
                 max="2025"
                 value={birthYearRange[0]}
@@ -364,10 +329,10 @@ export default function ComposerListPage() {
                   const val = parseInt(e.target.value);
                   setBirthYearRange([Math.min(val, birthYearRange[1]), birthYearRange[1]]);
                 }}
-                style={{ flex: 1 }}
               />
               <input
                 type="range"
+                className="range-slider"
                 min="1400"
                 max="2025"
                 value={birthYearRange[1]}
@@ -375,36 +340,19 @@ export default function ComposerListPage() {
                   const val = parseInt(e.target.value);
                   setBirthYearRange([birthYearRange[0], Math.max(val, birthYearRange[0])]);
                 }}
-                style={{ flex: 1 }}
               />
             </div>
           </div>
 
           {/* Instrumentation Dropdown */}
-          <div style={{ marginBottom: '1rem' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '0.5rem',
-                fontWeight: '600',
-                color: '#333',
-              }}
-            >
-              Instrumentation
-            </label>
+          <div className="filter-group">
+            <label className="filter-label">Instrumentation</label>
             <select
+              className="filter-select"
               value={selectedInstrumentation}
               onChange={(e) => {
                 setSelectedInstrumentation(e.target.value);
                 setCurrentPage(1);
-              }}
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                fontSize: '1rem',
-                border: '2px solid #ddd',
-                borderRadius: '8px',
-                outline: 'none',
               }}
             >
               <option value="">All Instrumentations</option>
@@ -418,18 +366,10 @@ export default function ComposerListPage() {
 
           {/* Clear Filters Button */}
           <button
+            className="clear-filters-button"
             onClick={() => {
               setBirthYearRange([1400, 2025]);
               setSelectedInstrumentation('');
-            }}
-            style={{
-              padding: '0.5rem 1rem',
-              background: '#666',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '0.9rem',
             }}
           >
             Clear Filters
@@ -439,20 +379,9 @@ export default function ComposerListPage() {
 
       {/* Error State */}
       {error && (
-        <div style={{ textAlign: 'center', padding: '3rem', color: '#d32f2f' }}>
+        <div className="error-state">
           <p>{error}</p>
-          <button
-            onClick={fetchComposers}
-            style={{
-              marginTop: '1rem',
-              padding: '0.5rem 1rem',
-              background: '#4CAF50',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          >
+          <button className="btn btn-primary" onClick={fetchComposers}>
             Retry
           </button>
         </div>
@@ -461,76 +390,37 @@ export default function ComposerListPage() {
       {/* Composers List */}
       {!error && !loading && (
         <>
-          <div style={{ marginBottom: '2rem', overflowX: 'auto' }}>
-            <table
-              style={{
-                width: '100%',
-                borderCollapse: 'collapse',
-                background: 'white',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-              }}
-            >
+          <div className="composers-table-container">
+            <table className="composers-table">
               <thead>
-                <tr style={{ background: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
+                <tr>
                   <th 
+                    className="sortable"
                     onClick={() => handleSort('name')}
-                    style={{ 
-                      padding: '1rem', 
-                      textAlign: 'left', 
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      userSelect: 'none'
-                    }}
                   >
                     Name {sortColumn === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
                   </th>
                   <th 
+                    className="sortable"
                     onClick={() => handleSort('period')}
-                    style={{ 
-                      padding: '1rem', 
-                      textAlign: 'left', 
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      userSelect: 'none'
-                    }}
                   >
                     Period {sortColumn === 'period' && (sortDirection === 'asc' ? '↑' : '↓')}
                   </th>
                   <th 
+                    className="sortable"
                     onClick={() => handleSort('country')}
-                    style={{ 
-                      padding: '1rem', 
-                      textAlign: 'left', 
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      userSelect: 'none'
-                    }}
                   >
                     Country {sortColumn === 'country' && (sortDirection === 'asc' ? '↑' : '↓')}
                   </th>
                   <th 
+                    className="sortable align-center years-column"
                     onClick={() => handleSort('birth_year')}
-                    style={{ 
-                      padding: '1rem', 
-                      textAlign: 'center', 
-                      fontWeight: '600', 
-                      width: '150px',
-                      cursor: 'pointer',
-                      userSelect: 'none'
-                    }}
                   >
                     Years {sortColumn === 'birth_year' && (sortDirection === 'asc' ? '↑' : '↓')}
                   </th>
                   <th 
+                    className="sortable align-center works-column"
                     onClick={() => handleSort('work_count')}
-                    style={{ 
-                      padding: '1rem', 
-                      textAlign: 'center', 
-                      fontWeight: '600', 
-                      width: '100px',
-                      cursor: 'pointer',
-                      userSelect: 'none'
-                    }}
                   >
                     Works {sortColumn === 'work_count' && (sortDirection === 'asc' ? '↑' : '↓')}
                   </th>
@@ -562,14 +452,14 @@ export default function ComposerListPage() {
 
       {/* Loading State */}
       {loading && (
-        <div style={{ textAlign: 'center', padding: '3rem', color: '#666' }}>
+        <div className="loading-state">
           <p>Loading composers...</p>
         </div>
       )}
 
       {/* No Results */}
       {!loading && !error && composers.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '3rem', color: '#666' }}>
+        <div className="empty-state">
           <p>No composers found. Try adjusting your search.</p>
         </div>
       )}

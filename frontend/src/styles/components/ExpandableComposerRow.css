@@ -1,0 +1,83 @@
+/* ExpandableComposerRow Component Styles */
+
+.composer-row {
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  background: white;
+  transition: background 0.2s;
+}
+
+.composer-row.non-clickable {
+  cursor: default;
+}
+
+.composer-row:hover {
+  background: #f9f9f9;
+}
+
+.composer-row td {
+  padding: 1rem;
+  color: #666;
+}
+
+.composer-row .expand-icon {
+  margin-right: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.composer-row .composer-name-link {
+  text-decoration: none;
+  color: #1976d2;
+  font-weight: 500;
+}
+
+.composer-row .composer-name-link:hover {
+  text-decoration: underline;
+}
+
+.expanded-works-row td {
+  padding: 0;
+  background: #f9f9f9;
+}
+
+.expanded-works-content {
+  padding: 1rem 2rem;
+}
+
+.loading-works {
+  color: #666;
+  font-style: italic;
+}
+
+.works-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.work-item {
+  padding: 0.5rem;
+  background: white;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.work-link {
+  text-decoration: none;
+  color: #1976d2;
+}
+
+.work-link:hover {
+  text-decoration: underline;
+}
+
+.work-instrumentation {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.no-works {
+  color: #666;
+  font-style: italic;
+}

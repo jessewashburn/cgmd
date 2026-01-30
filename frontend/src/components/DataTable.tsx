@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import '../styles/components/DataTable.css';
 
 export interface Column<T> {
   header: string | ReactNode;
@@ -26,7 +27,7 @@ export default function DataTable<T>({
 }: DataTableProps<T>) {
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: '3rem', color: '#666' }}>
+      <div className="loading-state">
         <p>Loading...</p>
       </div>
     );
@@ -34,7 +35,7 @@ export default function DataTable<T>({
 
   if (data.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: '3rem', color: '#666' }}>
+      <div className="empty-state">
         <p>{emptyMessage}</p>
       </div>
     );
@@ -47,27 +48,22 @@ export default function DataTable<T>({
     return row[column.accessor] as ReactNode;
   };
 
+  const getAlignClass = (align?: string) => {
+    if (align === 'center') return 'align-center';
+    if (align === 'right') return 'align-right';
+    return '';
+  };
+
   return (
-    <div style={{ marginBottom: '2rem', overflowX: 'auto' }}>
-      <table
-        style={{
-          width: '100%',
-          borderCollapse: 'collapse',
-          background: 'white',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-        }}
-      >
+    <div className="data-table-container">
+      <table className="data-table">
         <thead>
-          <tr style={{ background: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
+          <tr>
             {columns.map((column, index) => (
               <th
                 key={index}
-                style={{
-                  padding: '1rem',
-                  textAlign: column.align || 'left',
-                  fontWeight: '600',
-                  width: column.width,
-                }}
+                className={getAlignClass(column.align)}
+                style={{ width: column.width }}
               >
                 {column.header}
               </th>
@@ -78,22 +74,13 @@ export default function DataTable<T>({
           {data.map((row) => (
             <tr
               key={getRowKey(row)}
-              style={{
-                borderBottom: '1px solid #eee',
-                cursor: onRowClick ? 'pointer' : 'default',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = '#f9f9f9')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'white')}
+              className={onRowClick ? 'clickable' : ''}
               onClick={() => onRowClick?.(row)}
             >
               {columns.map((column, index) => (
                 <td
                   key={index}
-                  style={{
-                    padding: '1rem',
-                    textAlign: column.align || 'left',
-                    color: '#666',
-                  }}
+                  className={getAlignClass(column.align)}
                 >
                   {getCellValue(row, column)}
                 </td>
