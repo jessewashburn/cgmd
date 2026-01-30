@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Fuse from 'fuse.js';
 import api from '../services/api';
 import { useDebounce } from '../hooks/useDebounce';
+import { useInstrumentations } from '../hooks/useInstrumentations';
 import Pagination from '../components/Pagination';
 import ExpandableComposerRow from '../components/ExpandableComposerRow';
 import '../styles/shared/ListPage.css';
@@ -39,7 +40,7 @@ export default function ComposerListPage() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [birthYearRange, setBirthYearRange] = useState<[number, number]>([1400, 2025]);
   const [selectedInstrumentation, setSelectedInstrumentation] = useState<string>('');
-  const [instrumentations, setInstrumentations] = useState<string[]>([]);
+  const instrumentations = useInstrumentations();
   const [selectedCountry, setSelectedCountry] = useState<string>('');
   const [countries, setCountries] = useState<string[]>([]);
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -82,65 +83,6 @@ export default function ComposerListPage() {
     // Preload after a short delay to not block initial render
     const timer = setTimeout(preloadComposers, 500);
     return () => clearTimeout(timer);
-  }, []);
-
-  // Fetch instrumentation categories
-  useEffect(() => {
-    const fetchInstrumentations = async () => {
-      try {
-        const response = await api.get('/instrumentations/', {
-          params: { page_size: 500 }
-        });
-        const categories = response.data.results || response.data;
-        
-        // Filter for real instrumentation categories (not titles or junk)
-        // Common patterns: "guitar", "Guitar", specific ensembles, proper instrumentation terms
-        const validInstrumentations = categories
-          .map((cat: any) => cat.name)
-          .filter((name: string) => {
-            if (!name || name.length < 3) return false;
-            
-            const lower = name.toLowerCase();
-            
-            // Include if it contains key instrumentation terms
-            const hasValidTerms = 
-              lower.includes('guitar') ||
-              lower.includes('ensemble') ||
-              lower.includes('orchestra') ||
-              lower.includes('voice') ||
-              lower.includes('choir') ||
-              lower.includes('percussion') ||
-              lower.includes('strings') ||
-              lower.includes('wind') ||
-              lower.includes('brass') ||
-              (lower === 'solo') ||
-              (lower === 'duo') ||
-              (lower === 'trio') ||
-              (lower === 'quartet') ||
-              (lower === 'quintet');
-            
-            // Exclude if it looks like a title (has certain patterns)
-            const looksLikeTitle = 
-              lower.includes('op.') ||
-              lower.includes('for ') ||
-              lower.includes(' - ') ||
-              lower.includes('bagatelle') ||
-              lower.includes('study') ||
-              lower.includes('etude') ||
-              name.includes('#') ||
-              /^\d+$/.test(name) || // Just a number
-              name.length > 50; // Too long to be an instrumentation
-            
-            return hasValidTerms && !looksLikeTitle;
-          })
-          .sort((a: string, b: string) => a.localeCompare(b));
-        
-        setInstrumentations(validInstrumentations);
-      } catch (err) {
-        console.error('Error fetching instrumentations:', err);
-      }
-    };
-    fetchInstrumentations();
   }, []);
 
   // Fetch countries
