@@ -23,6 +23,9 @@ class CountryViewSet(viewsets.ReadOnlyModelViewSet):
     """
     API endpoint for countries.
     Provides list and detail views for countries.
+    By default, filters out descriptive entries (e.g., "American composer of X origin")
+    and only returns actual country names for dropdowns.
+    Use ?include_descriptions=true to get all entries.
     """
     queryset = Country.objects.all()
     serializer_class = CountrySerializer
@@ -30,6 +33,24 @@ class CountryViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = ['name', 'iso_code']
     ordering_fields = ['name']
     ordering = ['name']
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # By default, exclude descriptive entries that aren't real countries
+        # These are entries like "American composer of Pakistani origin"
+        include_descriptions = self.request.query_params.get('include_descriptions', 'false').lower() == 'true'
+        
+        if not include_descriptions:
+            # Filter out entries that look like descriptions, not countries
+            queryset = queryset.exclude(
+                Q(name__icontains='composer of') |
+                Q(name__icontains='descent') |
+                Q(name__icontains='origin') |
+                Q(name__icontains='heritage')
+            )
+        
+        return queryset
 
 
 class InstrumentationCategoryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -102,6 +123,206 @@ class ComposerViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(birth_year__gte=birth_year_min)
         if birth_year_max:
             queryset = queryset.filter(birth_year__lte=birth_year_max)
+        
+        # Filter by country name - matches both primary country AND country_description
+        # Handles variations like USA/America/American and country demonyms
+        country_name = self.request.query_params.get('country_name')
+        if country_name:
+            # Map common country names to their variations
+            search_terms = [country_name]
+            
+            # Comprehensive country variations mapping
+            country_variations = {
+                # North America
+                'United States': ['USA', 'US', 'America', 'American'],
+                'USA': ['United States', 'US', 'America', 'American'],
+                'Canada': ['Canadian'],
+                'Mexico': ['Mexican'],
+                
+                # Central America & Caribbean
+                'Cuba': ['Cuban'],
+                'Dominican Republic': ['Dominican'],
+                'Guatemala': ['Guatemalan'],
+                'Honduras': ['Honduran'],
+                'Costa Rica': ['Costa Rican'],
+                'Panama': ['Panamanian'],
+                'Jamaica': ['Jamaican'],
+                'Haiti': ['Haitian'],
+                'Puerto Rico': ['Puerto Rican'],
+                'Trinidad and Tobago': ['Trinidadian', 'Tobagonian'],
+                'Barbados': ['Barbadian', 'Bajan'],
+                'Bahamas': ['Bahamian'],
+                'Nicaragua': ['Nicaraguan'],
+                'El Salvador': ['Salvadoran'],
+                'Belize': ['Belizean'],
+                'Martinique': ['Martinican'],
+                'Guadeloupe': ['Guadeloupean'],
+                'Grenada': ['Grenadian'],
+                'Saint Lucia': ['Saint Lucian'],
+                'Saint Vincent': ['Vincentian'],
+                'Antigua and Barbuda': ['Antiguan', 'Barbudan'],
+                'Dominica': ['Dominican'],
+                'Saint Kitts and Nevis': ['Kittitian', 'Nevisian'],
+                'Aruba': ['Aruban'],
+                'Curaçao': ['Curaçaoan'],
+                'Suriname': ['Surinamese'],
+                'Guyana': ['Guyanese'],
+                
+                # South America
+                'Brazil': ['Brazilian'],
+                'Argentina': ['Argentinian', 'Argentine'],
+                'Chile': ['Chilean'],
+                'Colombia': ['Colombian'],
+                'Venezuela': ['Venezuelan'],
+                'Peru': ['Peruvian'],
+                'Uruguay': ['Uruguayan'],
+                'Paraguay': ['Paraguayan'],
+                'Bolivia': ['Bolivian'],
+                'Ecuador': ['Ecuadorian', 'Ecuadorean'],
+                
+                # Western Europe
+                'United Kingdom': ['UK', 'Britain', 'British', 'England', 'English', 'Scotland', 'Scottish', 'Wales', 'Welsh', 'Northern Ireland'],
+                'UK': ['United Kingdom', 'Britain', 'British', 'England', 'English'],
+                'England': ['English', 'British', 'UK'],
+                'Scotland': ['Scottish', 'British', 'UK', 'Scots'],
+                'Wales': ['Welsh', 'British', 'UK'],
+                'Northern Ireland': ['Irish', 'British', 'UK'],
+                'France': ['French'],
+                'Germany': ['German'],
+                'Italy': ['Italian'],
+                'Spain': ['Spanish', 'Catalan', 'Catalonia', 'Basque'],
+                'Portugal': ['Portuguese'],
+                'Netherlands': ['Dutch', 'Holland', 'Netherlandic'],
+                'Belgium': ['Belgian', 'Flemish', 'Walloon'],
+                'Switzerland': ['Swiss'],
+                'Austria': ['Austrian'],
+                'Ireland': ['Irish'],
+                'Luxembourg': ['Luxembourgish', 'Luxembourger'],
+                'Monaco': ['Monégasque', 'Monacan'],
+                'Andorra': ['Andorran'],
+                'Liechtenstein': ['Liechtensteiner'],
+                'San Marino': ['Sammarinese'],
+                'Vatican': ['Vatican'],
+                
+                # Northern Europe
+                'Sweden': ['Swedish'],
+                'Norway': ['Norwegian'],
+                'Denmark': ['Danish'],
+                'Finland': ['Finnish'],
+                'Iceland': ['Icelandic'],
+                'Faroe Islands': ['Faroese'],
+                'Greenland': ['Greenlandic'],
+                
+                # Eastern Europe
+                'Poland': ['Polish'],
+                'Russia': ['Russian', 'USSR', 'Soviet'],
+                'Ukraine': ['Ukrainian'],
+                'Czech Republic': ['Czech', 'Czechoslovakia', 'Czechoslovakian'],
+                'Hungary': ['Hungarian', 'Magyar'],
+                'Romania': ['Romanian'],
+                'Bulgaria': ['Bulgarian'],
+                'Serbia': ['Serbian'],
+                'Croatia': ['Croatian'],
+                'Slovenia': ['Slovenian'],
+                'Slovakia': ['Slovak', 'Slovakian'],
+                'Bosnia': ['Bosnian', 'Bosnia and Herzegovina'],
+                'Lithuania': ['Lithuanian'],
+                'Latvia': ['Latvian'],
+                'Estonia': ['Estonian'],
+                'Belarus': ['Belarusian'],
+                'Moldova': ['Moldovan'],
+                'Albania': ['Albanian'],
+                'Macedonia': ['Macedonian'],
+                'Montenegro': ['Montenegrin'],
+                'Kosovo': ['Kosovar'],
+                
+                # Southern Europe
+                'Greece': ['Greek', 'Hellenic'],
+                'Turkey': ['Turkish'],
+                'Cyprus': ['Cypriot'],
+                'Malta': ['Maltese'],
+                
+                # Middle East
+                'Israel': ['Israeli'],
+                'Iran': ['Iranian', 'Persia', 'Persian'],
+                'Iraq': ['Iraqi'],
+                'Lebanon': ['Lebanese'],
+                'Syria': ['Syrian'],
+                'Jordan': ['Jordanian'],
+                'Saudi Arabia': ['Saudi'],
+                'Egypt': ['Egyptian'],
+                'Yemen': ['Yemeni'],
+                'Kuwait': ['Kuwaiti'],
+                'Qatar': ['Qatari'],
+                'Bahrain': ['Bahraini'],
+                'Oman': ['Omani'],
+                'United Arab Emirates': ['UAE', 'Emirati'],
+                
+                # Asia
+                'China': ['Chinese', 'PRC'],
+                'Japan': ['Japanese'],
+                'Korea': ['Korean'],
+                'South Korea': ['Korean'],
+                'North Korea': ['Korean'],
+                'India': ['Indian'],
+                'Pakistan': ['Pakistani'],
+                'Bangladesh': ['Bangladeshi'],
+                'Vietnam': ['Vietnamese'],
+                'Thailand': ['Thai'],
+                'Indonesia': ['Indonesian'],
+                'Philippines': ['Philippine', 'Filipino'],
+                'Malaysia': ['Malaysian'],
+                'Singapore': ['Singaporean'],
+                'Taiwan': ['Taiwanese'],
+                'Hong Kong': ['Cantonese'],
+                'Mongolia': ['Mongolian'],
+                'Nepal': ['Nepalese', 'Nepali'],
+                'Sri Lanka': ['Sri Lankan'],
+                'Myanmar': ['Burmese', 'Burma'],
+                'Cambodia': ['Cambodian'],
+                'Laos': ['Laotian'],
+                'Afghanistan': ['Afghan'],
+                'Kazakhstan': ['Kazakh'],
+                'Uzbekistan': ['Uzbek'],
+                'Armenia': ['Armenian'],
+                'Georgia': ['Georgian'],
+                'Azerbaijan': ['Azerbaijani'],
+                
+                # Africa
+                'South Africa': ['South African'],
+                'Nigeria': ['Nigerian'],
+                'Kenya': ['Kenyan'],
+                'Ethiopia': ['Ethiopian'],
+                'Ghana': ['Ghanaian'],
+                'Morocco': ['Moroccan'],
+                'Algeria': ['Algerian'],
+                'Tunisia': ['Tunisian'],
+                'Libya': ['Libyan'],
+                'Senegal': ['Senegalese'],
+                'Tanzania': ['Tanzanian'],
+                'Uganda': ['Ugandan'],
+                'Angola': ['Angolan'],
+                'Mozambique': ['Mozambican'],
+                'Zimbabwe': ['Zimbabwean'],
+                'Cameroon': ['Cameroonian'],
+                'Madagascar': ['Malagasy'],
+                
+                # Oceania
+                'Australia': ['Australian'],
+                'New Zealand': ['New Zealander', 'Kiwi'],
+            }
+            
+            # Add variations if available
+            if country_name in country_variations:
+                search_terms.extend(country_variations[country_name])
+            
+            # Build query with all variations
+            query = Q()
+            for term in search_terms:
+                query |= Q(country__name__icontains=term)
+                query |= Q(country_description__icontains=term)
+            
+            queryset = queryset.filter(query).distinct()
         
         return queryset
     
