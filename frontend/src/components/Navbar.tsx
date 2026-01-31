@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import '../styles/components/Navbar.css';
 import solmuLogo from '../assets/Solmu.png';
 
 export default function Navbar() {
   const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isActive = (path: string) => {
     if (path === '/' && location.pathname === '/') return true;
@@ -21,19 +23,41 @@ export default function Navbar() {
           Solmu - Guitar Music Network
         </Link>
 
-        <ul className="navbar-links">
+        <button 
+          className="hamburger-menu" 
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label="Toggle menu"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+
+        <ul className={`navbar-links ${mobileMenuOpen ? 'mobile-open' : ''}`}>
           <li>
-            <Link to="/" className={`navbar-link ${isActive('/composers') ? 'active' : ''}`}>
+            <Link 
+              to="/" 
+              className={`navbar-link ${isActive('/composers') ? 'active' : ''}`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Composers
             </Link>
           </li>
           <li>
-            <Link to="/works" className={`navbar-link ${isActive('/works') ? 'active' : ''}`}>
+            <Link 
+              to="/works" 
+              className={`navbar-link ${isActive('/works') ? 'active' : ''}`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
               Works
             </Link>
           </li>
           <li>
-            <Link to="/about" className={`navbar-link ${isActive('/about') ? 'active' : ''}`}>
+            <Link 
+              to="/about" 
+              className={`navbar-link ${isActive('/about') ? 'active' : ''}`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
               About
             </Link>
           </li>

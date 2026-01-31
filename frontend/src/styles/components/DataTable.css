@@ -94,3 +94,71 @@
 .data-table .link-secondary:hover {
   color: var(--color-text-secondary);
 }
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  .data-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 calc(-1 * var(--spacing-md));
+    padding: 0 var(--spacing-md);
+  }
+
+  .data-table {
+    font-size: 0.9rem;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: var(--spacing-xs);
+    white-space: nowrap;
+  }
+
+  .data-table th {
+    font-size: 0.85rem;
+  }
+
+  /* Make first column (usually title) sticky on mobile */
+  .data-table th:first-child,
+  .data-table td:first-child {
+    position: sticky;
+    left: 0;
+    background: var(--color-background);
+    z-index: 1;
+    max-width: 200px;
+    white-space: normal;
+  }
+
+  .data-table th:first-child {
+    background: var(--color-header);
+  }
+
+  .data-table tbody tr:hover td:first-child {
+    background: var(--color-background-alt);
+  }
+}
+
+@media (max-width: 480px) {
+  .data-table-container {
+    margin: 0 calc(-1 * var(--spacing-sm));
+    padding: 0 var(--spacing-sm);
+  }
+
+  .data-table {
+    font-size: 0.85rem;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 6px;
+  }
+
+  .data-table th {
+    font-size: 0.8rem;
+  }
+
+  .data-table th:first-child,
+  .data-table td:first-child {
+    max-width: 150px;
+  }
+}

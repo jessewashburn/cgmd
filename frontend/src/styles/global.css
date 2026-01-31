@@ -178,3 +178,54 @@ a:hover {
   color: var(--color-accent-hover);
   transform: scale(1.05);
 }
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  :root {
+    --spacing-sm: 0.75rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.25rem;
+    --spacing-xl: 2rem;
+  }
+
+  .container,
+  .container-narrow,
+  .container-content {
+    padding: var(--spacing-md);
+  }
+
+  .page-header h1 {
+    font-size: 1.8rem;
+  }
+
+  .page-header p {
+    font-size: 0.9rem;
+  }
+
+  .btn {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --spacing-sm: 0.5rem;
+    --spacing-md: 0.75rem;
+    --spacing-lg: 1rem;
+    --spacing-xl: 1.5rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .page-header p {
+    font-size: 0.85rem;
+  }
+
+  .btn {
+    width: 100%;
+    padding: var(--spacing-sm);
+  }
+}
