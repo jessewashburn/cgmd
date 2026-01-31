@@ -450,7 +450,7 @@ class ComposerViewSet(viewsets.ReadOnlyModelViewSet):
         works = Work.objects.filter(
             composer=composer,
             is_public=True
-        ).select_related('instrumentation_category')
+        ).select_related('instrumentation_category').distinct()
         
         serializer = WorkListSerializer(works, many=True)
         return Response(serializer.data)
@@ -468,7 +468,7 @@ class WorkViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = Work.objects.select_related(
         'composer', 'instrumentation_category', 'data_source'
-    ).filter(is_public=True)
+    ).filter(is_public=True).distinct()
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'title_normalized', 'composer__full_name', 'opus_number']
     ordering_fields = ['title', 'composition_year', 'difficulty_level', 'view_count']
