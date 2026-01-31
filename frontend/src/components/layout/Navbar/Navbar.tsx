@@ -20,7 +20,10 @@ export default function Navbar() {
       <div className="navbar-content">
         <Link to="/" className="navbar-brand">
           <img src={solmuLogo} alt="Solmu" className="navbar-logo" />
-          Solmu - Guitar Music Network
+          <div className="navbar-title">
+            <div className="navbar-name">Solmu - Guitar Music Network</div>
+            <div className="navbar-tagline">Our repertoire, all in one place</div>
+          </div>
         </Link>
 
         <button 

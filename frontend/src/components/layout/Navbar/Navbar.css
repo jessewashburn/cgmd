@@ -17,8 +17,6 @@
 }
 
 .navbar-brand {
-  font-size: 1.8rem;
-  font-weight: 700;
   color: var(--color-background);
   text-decoration: none;
   transition: all 0.3s ease;
@@ -26,6 +24,23 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
+}
+
+.navbar-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.navbar-name {
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.navbar-tagline {
+  font-size: 0.85rem;
+  font-weight: 400;
+  opacity: 0.9;
 }
 
 .navbar-logo {
