@@ -54,12 +54,6 @@ export default function WorkDetailPage() {
               <dd>{work.catalog_number}</dd>
             </>
           )}
-          {work.year_composed && (
-            <>
-              <dt>Year Composed:</dt>
-              <dd>{work.year_composed}</dd>
-            </>
-          )}
           {work.instrumentation_detail && (
             <>
               <dt>Instrumentation:</dt>
@@ -70,12 +64,6 @@ export default function WorkDetailPage() {
             <>
               <dt>Duration:</dt>
               <dd>{work.duration_minutes} minutes</dd>
-            </>
-          )}
-          {work.difficulty_level && (
-            <>
-              <dt>Difficulty:</dt>
-              <dd>{work.difficulty_level}/10</dd>
             </>
           )}
           {work.movements && (
