@@ -67,11 +67,11 @@
 .work-title-link {
   color: var(--color-accent);
   text-decoration: none;
-  transition: color 0.3s ease;
+  transition: all 0.3s ease;
 }
 
 .work-title-link:hover {
-  color: var(--color-header);
+  text-decoration: underline;
 }
 
 .work-composer {
@@ -113,11 +113,10 @@
   color: var(--color-accent);
   text-decoration: none;
   font-weight: 600;
-  transition: color 0.3s ease;
+  transition: all 0.3s ease;
 }
 
 .composer-link:hover {
-  color: var(--color-header);
   text-decoration: underline;
 }
 
@@ -207,8 +206,13 @@
 
 .browse-card h3 {
   font-size: 1.8rem;
-  color: var(--color-header);
+  color: var(--color-accent);
   margin-bottom: var(--spacing-sm);
+  transition: all 0.3s ease;
+}
+
+.browse-card:hover h3 {
+  text-decoration: underline;
 }
 
 .browse-card p {
