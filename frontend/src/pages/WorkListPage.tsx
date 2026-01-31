@@ -5,9 +5,12 @@ import { useDebounce } from '../hooks/useDebounce';
 import { useInstrumentations } from '../hooks/useInstrumentations';
 import { useCountries } from '../hooks/useCountries';
 import { useSort } from '../hooks/useSort';
+import { useFilters } from '../hooks/useFilters';
 import { stripLeadingSymbols } from '../utils/fuzzySearch';
 import DataTable, { Column } from '../components/DataTable';
 import Pagination from '../components/Pagination';
+import SearchBar from '../components/SearchBar';
+import AdvancedFilters from '../components/AdvancedFilters';
 import '../styles/shared/ListPage.css';
 
 interface Work {
@@ -33,21 +36,20 @@ export default function WorkListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const { sortColumn, sortDirection, handleSort } = useSort<'title' | 'composer' | 'instrumentation'>();
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [compositionYearRange, setCompositionYearRange] = useState<[number, number]>([1400, 2025]);
-  const [selectedInstrumentation, setSelectedInstrumentation] = useState<string>('');
+  const {
+    yearRange: compositionYearRange,
+    setYearRange: setCompositionYearRange,
+    selectedInstrumentation,
+    setSelectedInstrumentation,
+    selectedCountry,
+    setSelectedCountry,
+    clearFilters,
+  } = useFilters();
   const instrumentations = useInstrumentations();
-  const [selectedCountry, setSelectedCountry] = useState<string>('');
   const countries = useCountries();
   const debouncedSearch = useDebounce(searchQuery, 300);
   
   const pageSize = 200;
-
-  const clearFilters = () => {
-    setCompositionYearRange([1400, 2025]);
-    setSelectedInstrumentation('');
-    setSelectedCountry('');
-  };
 
   // Apply sorting to displayed works
   const sortedWorks = useMemo(() => {
@@ -186,110 +188,33 @@ export default function WorkListPage() {
         <p>Browse {loading && totalCount === 0 ? '...' : totalCount.toLocaleString()} guitar works</p>
       </header>
 
-      {/* Search Bar */}
-      <div className="search-container">
-        <input
-          type="text"
-          className="search-input"
-          placeholder="Search for works or composers..."
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            setCurrentPage(1);
-          }}
-        />
-      </div>
+      <SearchBar
+        value={searchQuery}
+        onChange={(value) => {
+          setSearchQuery(value);
+          setCurrentPage(1);
+        }}
+        placeholder="Search for works or composers..."
+      />
 
-      {/* Advanced Filters Toggle */}
-      <div className="advanced-filters-toggle">
-        <button
-          className="toggle-button"
-          onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-        >
-          {showAdvancedFilters ? '▲' : '▼'} Advanced Filters
-        </button>
-      </div>
-
-      {/* Advanced Filters Panel */}
-      {showAdvancedFilters && (
-        <div className="advanced-filters-panel">
-          {/* Composition Year Range Slider */}
-          <div className="filter-group">
-            <label className="filter-label">
-              Composition Year Range: {compositionYearRange[0]} - {compositionYearRange[1]}
-            </label>
-            <div className="slider-container">
-              <input
-                type="range"
-                className="range-slider"
-                min="1400"
-                max="2025"
-                value={compositionYearRange[0]}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setCompositionYearRange([Math.min(val, compositionYearRange[1]), compositionYearRange[1]]);
-                }}
-              />
-              <input
-                type="range"
-                className="range-slider"
-                min="1400"
-                max="2025"
-                value={compositionYearRange[1]}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setCompositionYearRange([compositionYearRange[0], Math.max(val, compositionYearRange[0])]);
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Instrumentation Dropdown */}
-          <div className="filter-group">
-            <label className="filter-label">Instrumentation</label>
-            <select
-              className="filter-select"
-              value={selectedInstrumentation}
-              onChange={(e) => {
-                setSelectedInstrumentation(e.target.value);
-                setCurrentPage(1);
-              }}
-            >
-              <option value="">All Instrumentations</option>
-              {instrumentations.map((inst) => (
-                <option key={inst} value={inst}>
-                  {inst}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Country Dropdown */}
-          <div className="filter-group">
-            <label className="filter-label">Composer Country</label>
-            <select
-              className="filter-select"
-              value={selectedCountry}
-              onChange={(e) => {
-                setSelectedCountry(e.target.value);
-                setCurrentPage(1);
-              }}
-            >
-              <option value="">All Countries</option>
-              {countries.map((country) => (
-                <option key={country} value={country}>
-                  {country}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Clear Filters Button */}
-          <button className="clear-filters-button" onClick={clearFilters}>
-            Clear Filters
-          </button>
-        </div>
-      )}
+      <AdvancedFilters
+        yearRangeLabel="Composition Year Range"
+        yearRange={compositionYearRange}
+        onYearRangeChange={setCompositionYearRange}
+        selectedInstrumentation={selectedInstrumentation}
+        onInstrumentationChange={(value) => {
+          setSelectedInstrumentation(value);
+          setCurrentPage(1);
+        }}
+        instrumentations={instrumentations}
+        selectedCountry={selectedCountry}
+        onCountryChange={(value) => {
+          setSelectedCountry(value);
+          setCurrentPage(1);
+        }}
+        countries={countries}
+        onClearFilters={clearFilters}
+      />
 
       {/* Loading State */}
       {loading && (
