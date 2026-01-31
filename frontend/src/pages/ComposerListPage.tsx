@@ -224,7 +224,7 @@ export default function ComposerListPage() {
     <div className="list-page">
       <header className="page-header">
         <h1>Composers</h1>
-        <p>Browse {(totalCount || 0).toLocaleString()} classical guitar composers</p>
+        <p>Browse {loading && totalCount === 0 ? '...' : totalCount.toLocaleString()} classical guitar composers</p>
       </header>
 
       {/* Search Bar */}
