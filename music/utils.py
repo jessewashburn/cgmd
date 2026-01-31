@@ -265,3 +265,43 @@ def split_movements(movements_str: str) -> list:
     movements = [re.sub(r'^\d+\.?\s*|^[IVX]+\.?\s*', '', m) for m in movements]
     
     return movements
+
+
+def get_instrumentation_variations() -> dict:
+    """
+    Returns a dictionary mapping clean instrumentation category names to their variations.
+    Used for matching user search terms to actual database entries.
+    
+    Example: 'Solo' maps to ['Solo Guitar', 'Guitar Solo', 'solo']
+    This allows searching for 'Solo' to match entries like 'Solo Guitar' in the database.
+    
+    Returns:
+        dict: Mapping of normalized category names to list of variations
+    """
+    return {
+        'Solo': ['Solo Guitar', 'Guitar Solo', 'solo'],
+        'Duo': ['Guitar Duo', 'Duo for Guitar', 'Two Guitars', 'duo'],
+        'Trio': ['Guitar Trio', 'Trio for Guitar', 'Three Guitars', 'trio'],
+        'Quartet': ['Guitar Quartet', 'Quartet for Guitar', 'Four Guitars', 'quartet'],
+        'Quintet': ['quintet'],
+        'Sextet': ['sextet'],
+        'Septet': ['septet'],
+        'Octet': ['octet'],
+        'Ensemble': ['Guitar Ensemble', 'Mixed Ensemble', 'ensemble'],
+        'Guitar and Orchestra': ['Guitar and Orchestra', 'Guitar with Orchestra', 'Concerto', 'concerto'],
+        'Guitar Orchestra': ['Guitar Orchestra', 'Orchestra', 'orchestra', 'Orchester'],
+        'Guitar and Voice': ['Voice and Guitar', 'Guitar and Vocal', 'Vocal and Guitar', 'voice', 'vocal', 'song'],
+        'Guitar and Flute': ['Flute and Guitar', 'Guitar with Flute', 'Flute with Guitar', 'flute'],
+        'Guitar and Violin': ['Violin and Guitar', 'Guitar with Violin', 'Violin with Guitar', 'violin'],
+        'Guitar and Cello': ['Cello and Guitar', 'Guitar with Cello', 'Cello with Guitar', 'cello', 'violoncello'],
+        'Guitar and Piano': ['Piano and Guitar', 'Guitar with Piano', 'Piano with Guitar', 'piano'],
+        'Guitar and Strings': ['String Ensemble', 'Guitar with Strings', 'strings'],
+        'Guitar and Percussion': ['Percussion and Guitar', 'Guitar with Percussion', 'percussion'],
+        'Guitar and Marimba': ['Marimba and Guitar', 'marimba'],
+        'Guitar and Mandolin': ['Mandolin and Guitar', 'mandolin'],
+        'Chamber Music': ['Chamber', 'chamber'],
+        'Guitar with Electronics': ['Electronics', 'Electronic', 'Tape', 'Fixed Media', 'electronics'],
+        'Electric Guitar': ['Electric Guitar Solo', 'electric'],
+        'Bass Guitar': ['Bass Guitar Solo', 'bass guitar', 'Electric Bass'],
+        '12-String Guitar': ['12-string guitar', '12-string', 'twelve-string'],
+    }

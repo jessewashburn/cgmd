@@ -39,7 +39,10 @@ export function useInstrumentations() {
               (lower === 'duo') ||
               (lower === 'trio') ||
               (lower === 'quartet') ||
-              (lower === 'quintet');
+              (lower === 'quintet') ||
+              (lower === 'sextet') ||
+              (lower === 'septet') ||
+              (lower === 'octet');
             
             // Exclude if it looks like a title (has certain patterns)
             const looksLikeTitle = 
@@ -54,8 +57,7 @@ export function useInstrumentations() {
               name.length > 50; // Too long to be an instrumentation
             
             return hasValidTerms && !looksLikeTitle;
-          })
-          .sort((a: string, b: string) => a.localeCompare(b));
+          });
         
         setInstrumentations(validInstrumentations);
       } catch (err) {

@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Count
+from django.db.models.functions import Length
 from .models import (
     Country, InstrumentationCategory, DataSource,
     Composer, Work, Tag
@@ -56,13 +57,82 @@ class CountryViewSet(viewsets.ReadOnlyModelViewSet):
 class InstrumentationCategoryViewSet(viewsets.ReadOnlyModelViewSet):
     """
     API endpoint for instrumentation categories.
+    By default, filters out junk entries (titles, opus numbers, random text)
+    and only returns actual instrumentation categories.
+    Use ?include_all=true to get all entries.
     """
     queryset = InstrumentationCategory.objects.all()
     serializer_class = InstrumentationCategorySerializer
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [filters.SearchFilter]
     search_fields = ['name']
-    ordering_fields = ['name', 'sort_order']
-    ordering = ['sort_order', 'name']
+    
+    def list(self, request, *args, **kwargs):
+        """Override list to return curated categories instead of raw database values"""
+        include_all = request.query_params.get('include_all', 'false').lower() == 'true'
+        
+        if include_all:
+            # Return all database values
+            return super().list(request, *args, **kwargs)
+        
+        # Return curated, ordered categories
+        from .utils import get_instrumentation_variations
+        
+        # Define display order
+        ordered_categories = [
+            'Solo',
+            'Duo', 
+            'Trio',
+            'Quartet',
+            'Quintet',
+            'Sextet',
+            'Septet',
+            'Octet',
+            'Guitar and Orchestra',
+            'Guitar Orchestra',
+            'Guitar and Voice',
+            'Guitar and Flute',
+            'Guitar and Violin',
+            'Guitar and Cello',
+            'Guitar and Piano',
+            'Guitar and Strings',
+            'Guitar and Percussion',
+            'Guitar and Marimba',
+            'Guitar and Mandolin',
+            'Electric Guitar',
+            'Bass Guitar',
+            '12-String Guitar',
+            'Chamber Music',
+            'Guitar with Electronics',
+            'Mixed Ensemble',
+        ]
+        
+        # Get variations to check which categories actually exist in database
+        instrumentation_variations = get_instrumentation_variations()
+        
+        # Build result with only categories that have works
+        results = []
+        for category in ordered_categories:
+            if category in instrumentation_variations:
+                # Check if any variation exists in database
+                variations = instrumentation_variations[category]
+                query = Q()
+                for variation in variations:
+                    query |= Q(name__icontains=variation)  # Changed from iexact to icontains
+                
+                if InstrumentationCategory.objects.filter(query).exists():
+                    # Find the first matching DB entry to get the ID
+                    db_entry = InstrumentationCategory.objects.filter(query).first()
+                    results.append({
+                        'id': db_entry.id,
+                        'name': category,
+                        'sort_order': db_entry.sort_order if hasattr(db_entry, 'sort_order') else 0
+                    })
+        
+        return Response(results)
+    
+    def get_queryset(self):
+        # For retrieve operations, return normal queryset
+        return super().get_queryset()
 
 
 class DataSourceViewSet(viewsets.ReadOnlyModelViewSet):
@@ -109,11 +179,25 @@ class ComposerViewSet(viewsets.ReadOnlyModelViewSet):
             )
         
         # Filter by instrumentation (composers who have works with this instrumentation)
+        # Handles variations like "solo" matching "Solo Guitar", "Guitar Solo", etc.
         instrumentation = self.request.query_params.get('instrumentation')
         if instrumentation:
-            queryset = queryset.filter(
-                works__instrumentation_category__name=instrumentation
-            ).distinct()
+            from .utils import get_instrumentation_variations
+            
+            # Map common instrumentation names to their variations
+            search_terms = [instrumentation]
+            instrumentation_variations = get_instrumentation_variations()
+            
+            # Add variations if available
+            if instrumentation in instrumentation_variations:
+                search_terms.extend(instrumentation_variations[instrumentation])
+            
+            # Build query with all variations
+            query = Q()
+            for term in search_terms:
+                query |= Q(works__instrumentation_category__name__icontains=term)
+            
+            queryset = queryset.filter(query).distinct()
         
         # Filter by birth year range
         birth_year_min = self.request.query_params.get('birth_year_min')
@@ -403,11 +487,25 @@ class WorkViewSet(viewsets.ReadOnlyModelViewSet):
         queryset = super().get_queryset()
         
         # Filter by instrumentation (using instrumentation name)
+        # Handles variations like "solo" matching "Solo Guitar", "Guitar Solo", etc.
         instrumentation = self.request.query_params.get('instrumentation')
         if instrumentation:
-            queryset = queryset.filter(
-                instrumentation_category__name=instrumentation
-            )
+            from .utils import get_instrumentation_variations
+            
+            # Map common instrumentation names to their variations
+            search_terms = [instrumentation]
+            instrumentation_variations = get_instrumentation_variations()
+            
+            # Add variations if available
+            if instrumentation in instrumentation_variations:
+                search_terms.extend(instrumentation_variations[instrumentation])
+            
+            # Build query with all variations
+            query = Q()
+            for term in search_terms:
+                query |= Q(instrumentation_category__name__icontains=term)
+            
+            queryset = queryset.filter(query)
         
         # Filter by composer country
         composer_country = self.request.query_params.get('composer_country')
