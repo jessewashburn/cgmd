@@ -6,8 +6,8 @@ from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Q, Count
-from django.db.models.functions import Length
+from django.db.models import Q, Count, Value
+from django.db.models.functions import Length, Replace, Lower
 from .models import (
     Country, InstrumentationCategory, DataSource,
     Composer, Work, Tag
@@ -485,6 +485,27 @@ class WorkViewSet(viewsets.ReadOnlyModelViewSet):
     
     def get_queryset(self):
         queryset = super().get_queryset()
+        
+        # Apply default ordering that strips leading symbols
+        # Use RegexpReplace to remove leading non-alphanumeric characters for sorting
+        from django.db.models.functions import Replace, Lower
+        if not self.request.query_params.get('ordering'):
+            # Strip common leading symbols for natural alphabetical sorting
+            queryset = queryset.annotate(
+                title_for_sort=Replace(
+                    Replace(
+                        Replace(
+                            Replace(
+                                Replace(Lower('title'), Value('#'), Value('')),
+                                Value("'"), Value('')
+                            ),
+                            Value('"'), Value('')
+                        ),
+                        Value('&'), Value('')
+                    ),
+                    Value('('), Value('')
+                )
+            ).order_by('title_for_sort')
         
         # Filter by instrumentation (using instrumentation name)
         # Handles variations like "solo" matching "Solo Guitar", "Guitar Solo", etc.

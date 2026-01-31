@@ -1,6 +1,14 @@
 import Fuse, { IFuseOptions } from 'fuse.js';
 import { Work, Composer } from '../types';
 
+/**
+ * Strip leading symbols and punctuation from a string for sorting purposes
+ * So "'Untitled" becomes "Untitled" and sorts under 'U'
+ */
+export function stripLeadingSymbols(str: string): string {
+  return str.replace(/^[^\w\s]+/, '');
+}
+
 // Configuration for Work search
 const workSearchOptions: IFuseOptions<Work> = {
   keys: [
