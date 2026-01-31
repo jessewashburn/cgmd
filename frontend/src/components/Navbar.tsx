@@ -16,7 +16,7 @@ export default function Navbar() {
     <nav className="navbar">
       <div className="navbar-content">
         <Link to="/" className="navbar-brand">
-          CGMD
+          Solmu - Guitar Music Network
         </Link>
 
         <ul className="navbar-links">
