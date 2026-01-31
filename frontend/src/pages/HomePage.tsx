@@ -261,7 +261,7 @@ export default function HomePage() {
     <div className="list-page">
       <header className="page-header">
         <h1>Classical Guitar Music Database</h1>
-        <p>Browse {(totalCount || 0).toLocaleString()} guitar works alphabetically</p>
+        <p>Browse {(totalCount || 0).toLocaleString()} guitar works</p>
       </header>
 
       {/* Search Bar */}
