@@ -6,6 +6,6 @@ export default defineConfig({
   plugins: [react()],
   base: process.env.NODE_ENV === 'production' ? '/cgmd/' : '/',
   server: {
-    port: 3000,
+    port: 5173,
   },
 })

@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import '../styles/components/Navbar.css';
+import solmuLogo from '../assets/Solmu.png';
 
 export default function Navbar() {
   const location = useLocation();
@@ -16,6 +17,7 @@ export default function Navbar() {
     <nav className="navbar">
       <div className="navbar-content">
         <Link to="/" className="navbar-brand">
+          <img src={solmuLogo} alt="Solmu" className="navbar-logo" />
           Solmu - Guitar Music Network
         </Link>
 
