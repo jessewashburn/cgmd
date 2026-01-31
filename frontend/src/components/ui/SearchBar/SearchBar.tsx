@@ -1,4 +1,4 @@
-import '../styles/shared/ListPage.css';
+import '../../../styles/shared/ListPage.css';
 
 interface SearchBarProps {
   value: string;

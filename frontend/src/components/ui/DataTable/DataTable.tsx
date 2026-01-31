@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import '../styles/components/DataTable.css';
+import './DataTable.css';
 
 export interface Column<T> {
   header: string | ReactNode;

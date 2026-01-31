@@ -1,190 +1,241 @@
-# Classical Guitar Music Database
+# Solmu - Guitar Music Network
 
-A comprehensive database of classical guitar repertoire with Django REST API backend and React TypeScript frontend.
+A modern web application for browsing and exploring classical guitar music, composers, and works.
 
-## 📁 Project Structure
+## Project Structure
 
 ```
-cgmd/
-├── cgmd_backend/      # Django project settings
-├── music/             # Django app (models, views, serializers, admin)
-├── frontend/          # React + TypeScript frontend
-├── docs/              # Documentation
-├── data/              # Data files and schema
-├── scripts/           # Setup and utility scripts
-└── README.md          # This file
+.
+├── backend/
+│   ├── cgmd_backend/         # Django project settings
+│   ├── music/                # Main Django app
+│   │   ├── models.py         # Database models
+│   │   ├── serializers.py    # DRF serializers
+│   │   ├── views.py          # API views
+│   │   └── urls.py           # URL routing
+│   └── manage.py             # Django management script
+│
+└── frontend/
+    ├── public/               # Static assets
+    ├── src/
+    │   ├── components/       # Reusable UI components
+    │   │   ├── features/     # Feature-specific components
+    │   │   │   └── composers/
+    │   │   │       └── ExpandableComposerRow/
+    │   │   ├── layout/       # Layout components
+    │   │   │   └── Navbar/
+    │   │   └── ui/           # Generic UI components
+    │   │       ├── AdvancedFilters/
+    │   │       ├── DataTable/
+    │   │       ├── Pagination/
+    │   │       └── SearchBar/
+    │   ├── hooks/            # Custom React hooks
+    │   ├── lib/              # Utilities and services
+    │   ├── pages/            # Page components
+    │   ├── styles/           # Global styles
+    │   ├── types/            # TypeScript definitions
+    │   └── App.tsx           # Root component
+    └── package.json
 ```
 
-See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for detailed organization.
+## Component Organization
 
-## Tech Stack
+Components follow a modular structure with colocated styles:
 
-### Backend
-- **Python**: 3.12.6
-- **Django**: 6.0.1
-- **Django REST Framework**: 3.16.1
-- **Database**: MySQL with utf8mb4
-- **API Documentation**: drf-spectacular (OpenAPI/Swagger)
+```
+ComponentName/
+├── ComponentName.tsx    # Component logic
+├── ComponentName.css    # Component styles
+└── index.ts             # Barrel export
+```
+
+This provides:
+- Clear ownership of styles
+- Easy imports via barrel exports
+- Better code organization
+- Simplified testing
+
+## Technology Stack
 
 ### Frontend
-- **React**: 18
-- **TypeScript**: 5.2+
-- **React Router**: 6
-- **Axios**: API client
-- **Vite**: Build tool
-- **Deployment**: GitHub Pages
+- React 18 with TypeScript
+- Vite (build tooling)
+- React Router (navigation)
+- Axios (API client)
+- Fuse.js (fuzzy search)
 
-## Quick Start
+### Backend
+- Django 6.0
+- Django REST Framework
+- SQLite database
+- Python 3.10+
 
-### Backend Setup
+## Getting Started
 
-1. **Create Virtual Environment**
+### Prerequisites
+- Node.js 18+
+- Python 3.10+
+- npm or yarn
+
+### Installation
+
+1. Clone and enter directory:
+```bash
+git clone <repository-url>
+cd cgmd
+```
+
+2. Backend setup:
 ```bash
 python -m venv venv
-source venv/bin/activate  # or venv\Scripts\activate on Windows
-```
-
-2. **Install Dependencies**
-```bash
+source venv/Scripts/activate     # Windows
+# source venv/bin/activate       # macOS/Linux
 pip install -r requirements.txt
-```
-
-3. **Configure Environment**
-```bash
-cp .env.example .env
-# Edit .env with your MySQL credentials
-```
-
-4. **Create Database**
-```bash
-mysql -u root -p cgmd < data/database_schema.sql
-```
-
-5. **Run Migrations**
-```bash
 python manage.py migrate
-python manage.py createsuperuser
 ```
 
-6. **Import Data**
-```bash
-python manage.py import_sheerpluck
-```
-
-7. **Start Backend Server**
-```bash
-python manage.py runserver
-```
-
-Backend runs at: http://localhost:8000/api/
-
-### Frontend Setup
-
-1. **Install Dependencies**
+3. Frontend setup:
 ```bash
 cd frontend
 npm install
 ```
 
-2. **Start Dev Server**
+### Running the Application
+
+Start both servers:
+
+Backend (Django):
 ```bash
-npm run dev
+python manage.py runserver
+# http://localhost:8000
 ```
 
-Frontend runs at: http://localhost:3000
+Frontend (Vite):
+```bash
+cd frontend
+npm run dev
+# http://localhost:5173
+```
+
+Access application at http://localhost:5173
+
+## Key Features
+
+- Browse 1,000+ classical guitar composers
+- Search 100,000+ guitar works
+- Advanced filtering (year, country, instrumentation)
+- Fuzzy search with typo tolerance
+- Expandable composer rows
+- Mobile-responsive design
+- Real-time search with debouncing
 
 ## API Endpoints
 
-- `/api/composers/` - List and search composers
-- `/api/works/` - List and search works
-- `/api/composers/{id}/` - Composer details
-- `/api/works/{id}/` - Work details
-- `/api/stats/summary/` - Database statistics
-- `/api/docs/` - Interactive API documentation (Swagger)
-
-See [docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md) for complete reference.
-
-## Database Models
-
-- **Country**: Countries lookup table
-- **InstrumentationCategory**: Instrument grouping categories
-- **DataSource**: Track data sources (Sheerpluck, IMSLP, etc.)
-- **Composer**: Composer information
-- **ComposerAlias**: Alternative composer name spellings
-- **Work**: Musical works/pieces
-- **Tag**: Flexible categorization tags
-- **WorkTag**: Many-to-many relationship between works and tags
-- **WorkSearchIndex**: Denormalized search optimization table
-
-## Next Steps
-
-### Import Sheerpluck Data
-
-```bash
-python manage.py import_sheerpluck
+### Composers
+```
+GET  /api/composers/           List composers (paginated)
+GET  /api/composers/:id/       Get composer details
+GET  /api/composers/:id/works/ List composer works
 ```
 
-See [IMPORT_GUIDE.md](docs/IMPORT_GUIDE.md) for detailed import instructions.
-
-### Build REST API
-
-- [ ] Create serializers for API endpoints
-- [ ] Set up REST API views and routes
-- [ ] Configure CORS for frontend integration
-- [ ] Set up API documentation with drf-spectacular
-
-## Management Commands
-
-### import_sheerpluck
-
-Import classical guitar repertoire data from Sheerpluck CSV.
-
-```bash
-# Basic import
-python manage.py import_sheerpluck
-
-# Dry run (validate without saving)
-python manage.py import_sheerpluck --dry-run
-
-# Skip existing works
-python manage.py import_sheerpluck --skip-existing
-
-# Custom CSV path
-python manage.py import_sheerpluck /path/to/data.csv
+### Works
+```
+GET  /api/works/               List works (paginated)
+GET  /api/works/:id/           Get work details
 ```
 
-## Development Notes
-
-- Database schema is designed for MySQL with full-text search support
-- Models include auto-normalization for searchable fields
-- Admin interface is configured with custom filtering and search
-
-## Phase 4 - Frontend Complete! ✅
-
-**Completed**:
-- React + TypeScript app with Vite
-- 5 pages: Home, Composers List/Detail, Work Detail, Search
-- API service layer with type-safe interfaces  
-- React Router configuration
-- GitHub Pages deployment ready
-
-**Next**: Test with backend, add styling, deploy to production
-
-## Development Commands
-
-**Backend**:
-```bash
-python manage.py runserver          # Start server
-python manage.py import_sheerpluck  # Import data
-python manage.py test               # Run tests
+### Search & Filters
+```
+GET  /api/search/?q=query      Search composers and works
+GET  /api/instrumentations/    List instrumentation types
+GET  /api/countries/           List countries
 ```
 
-**Frontend**:
+All list endpoints support:
+- Pagination: `?page=1&page_size=200`
+- Filtering: `?instrumentation=X&country_name=Y`
+- Search: `?search=term`
+
+## Development
+
+### State Management
+- Local state: `useState`
+- Side effects: `useEffect`
+- Custom hooks: `useFilters`, `useSort`, `useDebounce`
+
+### Styling
+- Global styles: `src/styles/global.css`
+- Component styles: Colocated with components
+- CSS variables for theming
+- Mobile-first responsive design
+
+### Code Organization
+```
+components/
+├── features/      # Feature-specific (e.g., ExpandableComposerRow)
+├── layout/        # Layout structure (e.g., Navbar)
+└── ui/            # Reusable UI (e.g., DataTable, SearchBar)
+```
+
+### Import Patterns
+```typescript
+// Clean imports via barrel exports
+import Navbar from '@/components/layout/Navbar';
+import DataTable from '@/components/ui/DataTable';
+import { useFilters } from '@/hooks/useFilters';
+```
+
+## Building for Production
+
 ```bash
 cd frontend
-npm run dev        # Dev server (localhost:3000)
-npm run build      # Production build
-npm run deploy     # Deploy to GitHub Pages
+npm run build
+# Output in frontend/dist/
 ```
 
-See [docs/ROADMAP.md](docs/ROADMAP.md) for full project plan.
+Configure Django to serve static files or deploy separately.
+
+## Performance Optimizations
+
+- Debounced search (300ms)
+- Memoized computations (`useMemo`)
+- Optimized re-renders (`useCallback`)
+- Code splitting (Vite)
+- Lazy loading components
+
+## Browser Support
+
+- Chrome (latest)
+- Firefox (latest)
+- Safari (latest)
+- Edge (latest)
+
+Mobile responsive on all modern devices.
+
+## Code Style
+
+- TypeScript strict mode
+- ESLint for linting
+- PascalCase for components
+- camelCase for utilities
+- Consistent file naming
+
+## Contributing
+
+1. Fork repository
+2. Create feature branch (`git checkout -b feature/name`)
+3. Commit changes (`git commit -m 'Add feature'`)
+4. Push branch (`git push origin feature/name`)
+5. Open Pull Request
+
+## Project Status
+
+Active development. See ROADMAP.md for planned features.
+
+## License
+
+MIT License
+
+## Contact
+
+Repository: https://github.com/yourusername/solmu

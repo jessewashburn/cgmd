@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import api from '../services/api';
+import api from '../lib/api';
 
 /**
  * Custom hook to fetch and sort country names.

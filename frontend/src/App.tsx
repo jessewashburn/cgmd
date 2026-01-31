@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Navbar from './components/Navbar';
+import Navbar from './components/layout/Navbar';
 import WorkListPage from './pages/WorkListPage';
 import ComposerListPage from './pages/ComposerListPage';
 import ComposerDetailPage from './pages/ComposerDetailPage';

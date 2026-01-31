@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import '../styles/components/ExpandableComposerRow.css';
+import './ExpandableComposerRow.css';
 
 interface Work {
   id: number;

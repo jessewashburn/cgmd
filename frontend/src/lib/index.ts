@@ -1,6 +1,6 @@
 import api from './api';
 import { Composer, Work, PaginatedResponse } from '../types';
-import { fuzzySearchService } from '../utils/fuzzySearch';
+import { fuzzySearchService } from './fuzzySearch';
 
 // Cache for fuzzy search
 let allWorks: Work[] = [];

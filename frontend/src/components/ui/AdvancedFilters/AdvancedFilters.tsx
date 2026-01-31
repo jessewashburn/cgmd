@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import '../styles/shared/ListPage.css';
+import '../../../styles/shared/ListPage.css';
 
 interface YearRangeFilterProps {
   label: string;

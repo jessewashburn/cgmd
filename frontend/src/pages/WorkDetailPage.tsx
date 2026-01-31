@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { workService } from '../services';
+import { workService } from '../lib';
 import { Work } from '../types';
 import '../styles/shared/DetailPage.css';
 

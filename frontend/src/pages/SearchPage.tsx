@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { searchService } from '../services';
+import { searchService } from '../lib';
 import { Work, Composer } from '../types';
 import { useDebounce } from '../hooks/useDebounce';
 

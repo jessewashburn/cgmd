@@ -1,16 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../services/api';
+import api from '../lib/api';
 import { useDebounce } from '../hooks/useDebounce';
 import { useInstrumentations } from '../hooks/useInstrumentations';
 import { useCountries } from '../hooks/useCountries';
 import { useSort } from '../hooks/useSort';
 import { useFilters } from '../hooks/useFilters';
-import { stripLeadingSymbols } from '../utils/fuzzySearch';
-import DataTable, { Column } from '../components/DataTable';
-import Pagination from '../components/Pagination';
-import SearchBar from '../components/SearchBar';
-import AdvancedFilters from '../components/AdvancedFilters';
+import { stripLeadingSymbols } from '../lib/fuzzySearch';
+import DataTable, { Column } from '../components/ui/DataTable';
+import Pagination from '../components/ui/Pagination';
+import SearchBar from '../components/ui/SearchBar';
+import AdvancedFilters from '../components/ui/AdvancedFilters';
 import '../styles/shared/ListPage.css';
 
 interface Work {
