@@ -1,70 +1,51 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { workService, composerService } from '../lib';
-import { Work, Composer } from '../types';
 import { useDebounce } from '../hooks/useDebounce';
 
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState(searchParams.get('q') || '');
-  const debouncedQuery = useDebounce(query, 300); // Wait 300ms after user stops typing
-  const [works, setWorks] = useState<Work[]>([]);
-  const [composers, setComposers] = useState<Composer[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const searchCounterRef = useRef(0);
+  const debouncedQuery = useDebounce(query, 300);
+  const trimmed = debouncedQuery.trim();
 
+  // Keep the URL in sync with the (debounced) query so results are shareable/refresh-proof.
   useEffect(() => {
-    if (debouncedQuery.trim()) {
-      performSearch(debouncedQuery);
-    } else {
-      setWorks([]);
-      setComposers([]);
-      setError(null);
-      setLoading(false);
-    }
-  }, [debouncedQuery]);
+    const current = searchParams.get('q') || '';
+    if (trimmed === current) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (trimmed) next.set('q', trimmed);
+        else next.delete('q');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [trimmed, searchParams, setSearchParams]);
 
-  const performSearch = async (searchQuery: string) => {
-    // Increment counter for this search
-    const currentSearchId = ++searchCounterRef.current;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Use server-side search (fast with database indexes)
+  // TanStack Query keys on the term, so out-of-order responses can't clobber newer ones.
+  const { data, isFetching, isError } = useQuery({
+    queryKey: ['global-search', trimmed],
+    queryFn: async () => {
       const [worksResponse, composersResponse] = await Promise.all([
-        workService.getAll(1, searchQuery),
-        composerService.getAll(1, searchQuery),
+        workService.getAll(1, trimmed),
+        composerService.getAll(1, trimmed),
       ]);
-      
-      // Only update state if this is still the most recent search
-      if (currentSearchId === searchCounterRef.current) {
-        setWorks(worksResponse.results);
-        setComposers(composersResponse.results);
-        setLoading(false);
-      }
-    } catch (error) {
-      // Only update error state if this is still the most recent search
-      if (currentSearchId === searchCounterRef.current) {
-        console.error('Error searching:', error);
-        setError('Failed to search. Make sure the backend server is running at http://localhost:8000');
-        setLoading(false);
-      }
-    }
-  };
+      return { works: worksResponse.results, composers: composersResponse.results };
+    },
+    enabled: trimmed.length > 0,
+  });
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSearchParams({ q: query });
-  };
+  const works = data?.works ?? [];
+  const composers = data?.composers ?? [];
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
       <header style={{ marginBottom: '2rem' }}>
         <h1>Search</h1>
-        <form onSubmit={handleSearch} style={{ marginTop: '1rem' }}>
+        <form onSubmit={(e) => e.preventDefault()} style={{ marginTop: '1rem' }}>
           <input
             type="search"
             placeholder="Search for works, composers, titles..."
@@ -79,21 +60,10 @@ export default function SearchPage() {
               border: '1px solid #ccc',
             }}
           />
-          <button
-            type="submit"
-            style={{
-              marginLeft: '1rem',
-              padding: '0.75rem 2rem',
-              fontSize: '1rem',
-              cursor: 'pointer',
-            }}
-          >
-            Search
-          </button>
         </form>
       </header>
 
-      {error && (
+      {isError && (
         <div style={{
           padding: '1rem',
           background: '#fee',
@@ -102,13 +72,13 @@ export default function SearchPage() {
           marginBottom: '1rem',
           color: '#c00',
         }}>
-          {error}
+          Failed to search. Make sure the backend server is running at http://localhost:8000
         </div>
       )}
 
-      {loading ? (
-        <p>Searching... (Loading initial results)</p>
-      ) : query ? (
+      {trimmed && isFetching && works.length === 0 && composers.length === 0 ? (
+        <p>Searching...</p>
+      ) : trimmed ? (
         <>
           <p style={{ marginBottom: '1rem', color: '#666' }}>
             Found {composers.length} composers and {works.length} works
@@ -188,7 +158,7 @@ export default function SearchPage() {
             </section>
           )}
 
-          {composers.length === 0 && works.length === 0 && (
+          {!isFetching && composers.length === 0 && works.length === 0 && (
             <p>No results found</p>
           )}
         </>
