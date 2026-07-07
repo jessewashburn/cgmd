@@ -1,5 +1,35 @@
 # AWS Elastic Beanstalk Deployment Guide
 
+## Live environment (fill-ins for the commands below)
+
+| Thing | Value |
+|-------|-------|
+| Site domain | `www.solmuapp.com` / `solmuapp.com` |
+| CloudFront distribution ID | `E23JJN25WLB1B9` |
+| CloudFront domain | `djow2c4ppl2zz.cloudfront.net` |
+| Frontend S3 bucket | `cgmd-frontend-1770139819` |
+| Backend (EB) env | `cgmd-production` (region `us-east-1`) |
+| Backend origin | `cgmd-production.eba-u32mituc.us-east-1.elasticbeanstalk.com` |
+
+> One CloudFront distribution fronts both origins: `/` → S3 (frontend), `/api` → Elastic Beanstalk (backend).
+> The bucket name and distribution ID are **identifiers, not secrets** — safe to keep here. Real
+> secrets (AWS keys, DB password, `SECRET_KEY`) live in `~/.aws/`, EB env vars, and the gitignored `.env`.
+
+## Quick redeploy (frontend)
+
+```bash
+cd frontend && npm run build && cd ..
+aws s3 sync frontend/dist/ s3://cgmd-frontend-1770139819 --delete
+aws cloudfront create-invalidation --distribution-id E23JJN25WLB1B9 --paths "/*"
+```
+
+The invalidation clears CloudFront's cache of the old hashed assets; without it the CDN keeps
+serving the previous bundle until TTL expiry. Status:
+
+```bash
+aws cloudfront get-invalidation --distribution-id E23JJN25WLB1B9 --id <INVALIDATION_ID> --query "Invalidation.Status"
+```
+
 ## Prerequisites
 1. AWS Account with Free Tier eligible
 2. AWS CLI installed
@@ -170,10 +200,10 @@ eb terminate              # Delete environment (careful!)
 ### Frontend (S3)
 ```bash
 # Sync new files
-aws s3 sync frontend/dist/ s3://cgmd-frontend-bucket --delete
+aws s3 sync frontend/dist/ s3://cgmd-frontend-1770139819 --delete
 
 # Invalidate CloudFront cache
-aws cloudfront create-invalidation --distribution-id DIST-ID --paths "/*"
+aws cloudfront create-invalidation --distribution-id E23JJN25WLB1B9 --paths "/*"
 ```
 
 ## Cost Estimate
@@ -201,6 +231,50 @@ sudo cat /var/log/eb-engine.log
 sudo cat /var/log/web.stdout.log
 ```
 
+## Hardening: CloudFront OAC + private bucket — ✅ APPLIED (2026-07-07)
+
+**Current state:** the frontend bucket is **private** and served **only** through CloudFront via
+**Origin Access Control** (OAC id `E3MZSI8QOW4DL1`). Block Public Access is ON, the public bucket
+policy is removed (see [s3-policy.json](s3-policy.json) for the applied OAC policy), and S3 static
+website hosting is disabled. The distribution's frontend origin is the S3 **REST** endpoint
+(`cgmd-frontend-1770139819.s3.us-east-1.amazonaws.com`), and SPA deep links work via CloudFront
+custom error responses (403/404 → `/index.html`, 200). Direct S3 access now returns 403/404.
+
+> Verified: `www.solmuapp.com/` and `/api/*` → 200; direct S3 REST/website endpoints → 403/404.
+
+The migration steps below are retained for reference / disaster recovery.
+
+Migration outline (do in this order; test in the CloudFront console first):
+
+1. **Create an OAC** (CloudFront console → Security → Origin access) of type "S3", signing = SigV4.
+2. **Switch the origin** on distribution `E23JJN25WLB1B9`: change the frontend origin from the S3
+   *website* endpoint to the S3 *REST* endpoint (`cgmd-frontend-1770139819.s3.us-east-1.amazonaws.com`)
+   and attach the OAC. Keep the SPA fallback by configuring a **custom error response**:
+   403/404 → `/index.html` (200), since a private bucket returns 403 for missing keys.
+3. **Replace the public bucket policy** with an OAC policy that allows only this distribution:
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [{
+       "Sid": "AllowCloudFrontOAC",
+       "Effect": "Allow",
+       "Principal": { "Service": "cloudfront.amazonaws.com" },
+       "Action": "s3:GetObject",
+       "Resource": "arn:aws:s3:::cgmd-frontend-1770139819/*",
+       "Condition": {
+         "StringEquals": { "AWS:SourceArn": "arn:aws:cloudfront::<ACCOUNT_ID>:distribution/E23JJN25WLB1B9" }
+       }
+     }]
+   }
+   ```
+4. **Turn off public access**: bucket → Permissions → Block Public Access = **On**; remove the old
+   public-read policy. You can also disable S3 "Static website hosting" (OAC uses the REST endpoint).
+5. **Invalidate** (`/*`) and verify: `https://www.solmuapp.com` works; the raw
+   `*.s3-website-*` / `*.s3.amazonaws.com` URLs now return **403**.
+
+Deploy commands are unchanged — you still `aws s3 sync` + invalidate; only *how CloudFront reads the
+bucket* changes.
+
 ## Production Checklist
 - [ ] SECRET_KEY set (new, random value)
 - [ ] DEBUG=False
@@ -212,3 +286,4 @@ sudo cat /var/log/web.stdout.log
 - [ ] Migrations run successfully
 - [ ] Static files collected
 - [ ] CloudFront error pages configured for SPA routing
+- [x] Frontend bucket private + served via CloudFront OAC (applied 2026-07-07) — see "Hardening" above

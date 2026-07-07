@@ -41,15 +41,15 @@ frontend/src/
 ├── hooks/                    # Custom React hooks
 │   ├── useCountries.ts
 │   ├── useDebounce.ts
-│   ├── useFilters.ts
 │   ├── useInstrumentations.ts
-│   └── useSort.ts
+│   └── useServerTable.ts     # sort/filter/search/page + TanStack Query (list views)
 │
 ├── lib/                      # Utilities and services
 │   ├── api.ts                # Axios API client
-│   ├── fuzzySearch.ts        # Search utilities
-│   ├── index.ts              # Service exports
-│   └── index.ts.backup
+│   ├── index.ts              # Service exports (composers, works, stats)
+│   └── titleSortKey.ts       # Title sort-key helper
+│
+├── test/                     # Vitest harness (MSW server, providers)
 │
 ├── pages/                    # Page components (routes)
 │   ├── AboutPage.tsx
@@ -100,8 +100,7 @@ import ExpandableComposerRow from '@/components/features/composers/ExpandableCom
 ### Hooks
 ```typescript
 import { useDebounce } from '@/hooks/useDebounce';
-import { useFilters } from '@/hooks/useFilters';
-import { useSort } from '@/hooks/useSort';
+import { useServerTable } from '@/hooks/useServerTable';
 import { useCountries } from '@/hooks/useCountries';
 import { useInstrumentations } from '@/hooks/useInstrumentations';
 ```
@@ -109,8 +108,7 @@ import { useInstrumentations } from '@/hooks/useInstrumentations';
 ### Library
 ```typescript
 import api from '@/lib/api';
-import { fuzzySearch } from '@/lib/fuzzySearch';
-import { composerService, workService, searchService } from '@/lib';
+import { composerService, workService, statsService } from '@/lib';
 ```
 
 ### Types
@@ -144,8 +142,13 @@ npm run build            # Build for production
 npm run preview          # Preview production build
 npm run lint             # Run ESLint
 
+# Tests
+npm test                 # Vitest unit/component tests
+npm run test:e2e         # Playwright E2E (boots Django + Vite, seeds a test DB)
+
 # Backend
 python manage.py runserver  # Start Django API (http://localhost:8000)
+pytest                      # Backend tests (pytest-django, from repo root)
 ```
 
 ## Common Tasks
@@ -170,8 +173,8 @@ touch src/hooks/useNewHook.ts
 ## File Naming Conventions
 
 - Components: `PascalCase.tsx` (e.g., `DataTable.tsx`)
-- Hooks: `camelCase.ts` with `use` prefix (e.g., `useFilters.ts`)
-- Utilities: `camelCase.ts` (e.g., `fuzzySearch.ts`)
+- Hooks: `camelCase.ts` with `use` prefix (e.g., `useServerTable.ts`)
+- Utilities: `camelCase.ts` (e.g., `titleSortKey.ts`)
 - Types: `PascalCase` interfaces/types (e.g., `Composer`, `Work`)
 
 ## Key Features
@@ -189,8 +192,9 @@ touch src/hooks/useNewHook.ts
 - **TypeScript** - Type safety
 - **Vite** - Build tool
 - **React Router** - Routing
+- **TanStack Query** - Server-state (caching, dedup, race safety)
 - **Axios** - HTTP client
-- **Fuse.js** - Fuzzy search
+- Fuzzy search is **server-side** (PostgreSQL trigram), not a frontend lib
 
 ## Documentation
 
@@ -201,14 +205,12 @@ touch src/hooks/useNewHook.ts
 
 ## Common Patterns
 
-### Data Fetching
+### Data Fetching (one-off)
 ```typescript
-const [data, setData] = useState([]);
-const [loading, setLoading] = useState(true);
-
-useEffect(() => {
-  fetchData();
-}, [dependency]);
+const { data, isLoading, isError } = useQuery({
+  queryKey: ['work', id],
+  queryFn: () => workService.getById(id),
+});
 ```
 
 ### Search with Debounce
@@ -221,15 +223,17 @@ useEffect(() => {
 }, [debouncedQuery]);
 ```
 
-### Filtering
+### List view (sort/filter/search/page + data)
 ```typescript
-const {
-  yearRange,
-  setYearRange,
-  selectedCountry,
-  setSelectedCountry,
-  clearFilters
-} = useFilters();
+const table = useServerTable<WorkListItem>({
+  endpoint: '/works/',
+  queryKey: 'works',
+  defaultOrdering: 'title_sort_key',
+  buildFilterParams,   // maps generic filter state -> backend params
+});
+// table.rows, table.sort/onSort, table.page/setPage,
+// table.searchInput/setSearchInput, table.filters/setYearRange/setCountry/clearFilters,
+// table.isFetching, table.isError, table.refetch
 ```
 
 ## API Endpoints
@@ -238,9 +242,9 @@ const {
 GET  /api/composers/              # List composers
 GET  /api/composers/:id/          # Get composer
 GET  /api/composers/:id/works/    # Get composer works
-GET  /api/works/                  # List works
+GET  /api/works/                  # List works (paginated)
 GET  /api/works/:id/              # Get work
-GET  /api/search/?q=query         # Search
+GET  /api/works/?search=term      # Fuzzy search (trigram); also ?ordering= & filter params
 GET  /api/countries/              # List countries
 GET  /api/instrumentations/       # List instrumentations
 ```
@@ -248,8 +252,8 @@ GET  /api/instrumentations/       # List instrumentations
 ## Environment
 
 - **Development**: http://localhost:5173
-- **API**: http://localhost:8000
-- **Production**: TBD
+- **API (dev)**: http://localhost:8000
+- **Production**: https://www.solmuapp.com (S3 + CloudFront + Elastic Beanstalk — see `AWS_DEPLOYMENT.md`)
 
 ## Support
 

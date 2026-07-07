@@ -61,18 +61,19 @@ Domain-specific components:
 ## Custom Hooks (`hooks/`)
 
 Shared stateful logic:
+- `useServerTable` - The core list-view hook: owns sort/filter/search/page state in the URL, keys a TanStack Query on those params (caching, dedup, race safety, `keepPreviousData`), and preserves the search-relevance-vs-manual-sort rule
+- `useDebounce` - Debounce value changes (300ms across the app)
 - `useCountries` - Fetch and cache country list
-- `useDebounce` - Debounce value changes
-- `useFilters` - Manage filter state
 - `useInstrumentations` - Fetch and cache instrumentations
-- `useSort` - Handle column sorting
 
 ## Library (`lib/`)
 
 Utilities and services:
-- `api.ts` - Axios API client configuration
-- `fuzzySearch.ts` - Fuzzy search utilities
-- `index.ts` - Service layer (composers, works, search)
+- `api.ts` - Axios API client configuration (base URL from `VITE_API_URL`)
+- `index.ts` - Service layer (composers, works, stats)
+- `titleSortKey.ts` - Title sort-key helper
+
+> Removed: `fuzzySearch.ts` (client-side Fuse.js) — replaced by server-side PostgreSQL trigram search.
 
 ## Pages (`pages/`)
 
@@ -118,7 +119,7 @@ import Navbar from './components/layout/Navbar';
 Relative imports from src:
 ```typescript
 import api from '../lib/api';
-import { useFilters } from '../hooks/useFilters';
+import { useServerTable } from '../hooks/useServerTable';
 ```
 
 ## State Management
@@ -132,16 +133,18 @@ import { useFilters } from '../hooks/useFilters';
 - Context API for app-wide state (if needed)
 
 ### Server State
-- Direct API calls with axios
-- Local caching in service layer
+- **TanStack Query** (`@tanstack/react-query`) — caching, deduplication, stale-while-revalidate, and race-safe requests (a stale response can't overwrite a newer one)
+- List views go through `useServerTable`, which keys the query on `{ sort, filter, search, page }` and mirrors those selections into the URL (`useSearchParams`) so views are shareable and refresh-proof
+- `axios` remains the transport, wrapped by TanStack Query
 
 ## Code Conventions
 
 ### Naming
 - Components: PascalCase (`DataTable.tsx`)
-- Hooks: camelCase with 'use' prefix (`useFilters.ts`)
-- Utilities: camelCase (`fuzzySearch.ts`)
+- Hooks: camelCase with 'use' prefix (`useServerTable.ts`)
+- Utilities: camelCase (`titleSortKey.ts`)
 - Types: PascalCase (`Composer`, `Work`)
+- Tests: colocated `*.test.ts(x)` next to the unit under test
 
 ### File Organization
 - One component per file
@@ -166,16 +169,21 @@ import { useFilters } from '../hooks/useFilters';
 - Tree shaking enabled
 - CSS minification in production
 
-## Testing Strategy
+## Testing
 
-### Unit Tests
-Test individual components and hooks in isolation.
+### Unit / component (Vitest + React Testing Library + MSW)
+`npm test` (watch: `npm run test:watch`, coverage: `npm run test:cov`). Covers the hooks
+(`useServerTable`, `useDebounce`), `DataTable`, the filter builders, and page smoke tests.
+MSW intercepts the API at the network layer. Config: `vitest.config.ts`, harness in `src/test/`.
 
-### Integration Tests
-Test component interactions and data flow.
+### E2E (Playwright)
+`npm run test:e2e` — Playwright boots Django + Vite and seeds a deterministic dataset
+(`python manage.py seed_e2e`), then drives real flows: search race, paging, URL share/refresh,
+back-button, sorting, filters, and navigation. Specs live in `e2e/`, config in `playwright.config.ts`.
 
-### E2E Tests
-Test complete user workflows.
+### Backend
+`pytest` from the repo root (pytest-django). CI runs everything on every PR
+(`.github/workflows/ci.yml`) with a Postgres service and coverage gates.
 
 ## Build Process
 
@@ -216,11 +224,25 @@ Preview production build locally
 
 ## Common Patterns
 
-### Data Fetching
+### Data Fetching (list views)
 ```typescript
-useEffect(() => {
-  fetchData();
-}, [dependency]);
+// The list pages don't hand-roll fetch/loading/error — useServerTable owns it.
+const table = useServerTable<WorkListItem>({
+  endpoint: '/works/',
+  queryKey: 'works',
+  defaultOrdering: 'title_sort_key',
+  buildFilterParams,          // maps generic filter state -> backend params
+});
+// table.rows, table.totalCount, table.page/setPage, table.sort/onSort,
+// table.searchInput/setSearchInput, table.filters, table.isFetching, ...
+```
+
+### One-off Data Fetching
+```typescript
+const { data, isLoading, isError } = useQuery({
+  queryKey: ['work', id],
+  queryFn: () => workService.getById(id),
+});
 ```
 
 ### Form State

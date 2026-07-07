@@ -72,7 +72,7 @@ export default function SearchPage() {
           marginBottom: '1rem',
           color: '#c00',
         }}>
-          Failed to search. Make sure the backend server is running at http://localhost:8000
+          Failed to search. Please try again in a moment.
         </div>
       )}
 

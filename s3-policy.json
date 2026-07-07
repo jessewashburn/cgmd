@@ -2,11 +2,16 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "PublicReadGetObject",
+      "Sid": "AllowCloudFrontOAC",
       "Effect": "Allow",
-      "Principal": "*",
+      "Principal": { "Service": "cloudfront.amazonaws.com" },
       "Action": "s3:GetObject",
-      "Resource": "arn:aws:s3:::cgmd-frontend-1770139819/*"
+      "Resource": "arn:aws:s3:::cgmd-frontend-1770139819/*",
+      "Condition": {
+        "StringEquals": {
+          "AWS:SourceArn": "arn:aws:cloudfront::429541886989:distribution/E23JJN25WLB1B9"
+        }
+      }
     }
   ]
 }

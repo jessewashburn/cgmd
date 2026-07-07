@@ -63,8 +63,8 @@ This provides:
 - React 18 with TypeScript
 - Vite (build tooling)
 - React Router (navigation)
+- TanStack Query (server-state: caching, dedup, race-safe requests)
 - Axios (API client)
-- Fuse.js (fuzzy search)
 
 ### Backend
 - Django 6.0
@@ -130,7 +130,8 @@ Access application at http://localhost:5173
 - Browse 15,000+ classical guitar composers
 - Search 74,000+ guitar works
 - Advanced filtering (year, country, instrumentation)
-- Fuzzy search with typo tolerance
+- Typo-tolerant fuzzy search (PostgreSQL trigram, server-side)
+- Shareable/refresh-proof views (all sort/filter/search/page state in the URL)
 - Expandable composer rows
 - Mobile-responsive design
 - Real-time search with debouncing
@@ -152,22 +153,25 @@ GET  /api/works/:id/           Get work details
 
 ### Search & Filters
 ```
-GET  /api/search/?q=query      Search composers and works
-GET  /api/instrumentations/    List instrumentation types
-GET  /api/countries/           List countries
+GET  /api/works/?search=term        Fuzzy search works (trigram)
+GET  /api/composers/?search=term    Fuzzy search composers (trigram)
+GET  /api/instrumentations/         List instrumentation types
+GET  /api/countries/                List countries
 ```
 
 All list endpoints support:
-- Pagination: `?page=1&page_size=200`
-- Filtering: `?instrumentation=X&country_name=Y`
-- Search: `?search=term`
+- Pagination: `?page=1&page_size=50`
+- Ordering: `?ordering=title_sort_key` (prefix `-` for descending)
+- Filtering (works): `?instrumentation=X&composer_country=Y&composer_birth_year_min=…`
+- Filtering (composers): `?instrumentation=X&country_name=Y&birth_year_min=…`
+- Search: `?search=term` (omit `ordering` to rank by relevance)
 
 ## Development
 
 ### State Management
-- Local state: `useState`
-- Side effects: `useEffect`
-- Custom hooks: `useFilters`, `useSort`, `useDebounce`
+- **Server state:** TanStack Query — list views use `useServerTable`, which keys the query on sort/filter/search/page for caching + race safety
+- **URL as source of truth:** sort/filter/search/page live in the URL (`useSearchParams`), so views are shareable, refresh-proof, and back-button friendly
+- **Local state:** `useState`; **debouncing:** `useDebounce`
 
 ### Styling
 - Global styles: `src/styles/global.css`
@@ -188,8 +192,23 @@ components/
 // Clean imports via barrel exports
 import Navbar from '@/components/layout/Navbar';
 import DataTable from '@/components/ui/DataTable';
-import { useFilters } from '@/hooks/useFilters';
+import { useServerTable } from '@/hooks/useServerTable';
 ```
+
+## Testing
+
+```bash
+# Backend (pytest-django)
+pytest
+
+# Frontend unit/component (Vitest + Testing Library + MSW)
+cd frontend && npm test
+
+# End-to-end (Playwright — boots Django + Vite, seeds a test DB)
+cd frontend && npm run test:e2e
+```
+
+CI (`.github/workflows/ci.yml`) runs all three on every PR — Postgres service for the backend/E2E, plus coverage gates.
 
 ## Building for Production
 
@@ -199,15 +218,14 @@ npm run build
 # Output in frontend/dist/
 ```
 
-Configure Django to serve static files or deploy separately.
+The site runs on AWS — frontend on **S3 + CloudFront** (private bucket via OAC), backend on **Elastic Beanstalk**. See [AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md) for the full runbook and one-command redeploy.
 
 ## Performance Optimizations
 
+- Server-state caching, dedup, and stale-while-revalidate (TanStack Query)
 - Debounced search (300ms)
-- Memoized computations (`useMemo`)
-- Optimized re-renders (`useCallback`)
-- Code splitting (Vite)
-- Lazy loading components
+- Memoized computations (`useMemo`) and stable callbacks (`useCallback`)
+- Code splitting and lazy-loaded routes (Vite / React.lazy)
 
 ## Browser Support
 
