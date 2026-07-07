@@ -77,5 +77,6 @@ export const statsService = {
   },
 };
 
-// Preload stats at module load time so they're ready before React mounts
-statsService.getSummary();
+// Preload stats at module load time so they're ready before React mounts.
+// Swallow errors: a failed preload must not surface as an unhandled rejection.
+statsService.getSummary().catch(() => {});

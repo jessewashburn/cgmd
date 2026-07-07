@@ -1,0 +1,105 @@
+"""
+Seed a small, deterministic dataset for Playwright E2E tests.
+
+Safe by design: refuses to run against a database that already holds a large
+number of works (i.e. real data) unless --force is passed.
+"""
+import unicodedata
+
+from django.core.management.base import BaseCommand
+from django.db import transaction
+
+from music.models import (
+    Country, InstrumentationCategory, DataSource, Composer, Work,
+)
+
+COMPOSERS = [
+    # full_name, last_name, first_name, country, birth_year, period
+    ('Francisco Tárrega', 'Tárrega', 'Francisco', 'Spain', 1852, 'Romantic'),
+    ('Fernando Sor', 'Sor', 'Fernando', 'Spain', 1778, 'Classical'),
+    ('Mauro Giuliani', 'Giuliani', 'Mauro', 'Italy', 1781, 'Classical'),
+    ('Heitor Villa-Lobos', 'Villa-Lobos', 'Heitor', 'Brazil', 1887, 'Modern'),
+    ('Agustín Barrios', 'Barrios', 'Agustín', 'Paraguay', 1885, 'Modern'),
+]
+
+NAMED_WORKS = [
+    ('Recuerdos de la Alhambra', 'Francisco Tárrega'),
+    ('Capricho Árabe', 'Francisco Tárrega'),
+    ('Gran Vals', 'Francisco Tárrega'),
+    ('Estudio No. 1', 'Fernando Sor'),
+    ('Variations on a Theme by Mozart', 'Fernando Sor'),
+    ('Grande Ouverture', 'Mauro Giuliani'),
+    ('Bachianas Brasileiras No. 5', 'Heitor Villa-Lobos'),
+    ('La Catedral', 'Agustín Barrios'),
+]
+
+
+def sort_key(title: str) -> str:
+    return (
+        unicodedata.normalize('NFKD', title)
+        .encode('ascii', 'ignore')
+        .decode('utf-8')
+        .lower()
+        .strip()
+    )
+
+
+class Command(BaseCommand):
+    help = 'Seed a small deterministic dataset for E2E tests.'
+
+    def add_arguments(self, parser):
+        parser.add_argument('--force', action='store_true',
+                            help='Seed even if the DB already has many works.')
+
+    @transaction.atomic
+    def handle(self, *args, **options):
+        if Work.objects.count() > 1000 and not options['force']:
+            self.stderr.write(self.style.ERROR(
+                'Refusing to seed: database has >1000 works (looks like real data). '
+                'Use --force to override.'
+            ))
+            return
+
+        # Reset (safe on a throwaway E2E DB)
+        Work.objects.all().delete()
+        Composer.objects.all().delete()
+        InstrumentationCategory.objects.all().delete()
+        Country.objects.all().delete()
+
+        source, _ = DataSource.objects.get_or_create(name='E2E Seed')
+        solo = InstrumentationCategory.objects.create(name='Guitar solo')
+        duo = InstrumentationCategory.objects.create(name='Guitar duo')
+
+        countries: dict[str, Country] = {}
+        composers: dict[str, Composer] = {}
+        for full, last, first, country_name, birth, period in COMPOSERS:
+            country = countries.get(country_name)
+            if country is None:
+                country = Country.objects.create(name=country_name)
+                countries[country_name] = country
+            composers[full] = Composer.objects.create(
+                full_name=full, last_name=last, first_name=first,
+                country=country, birth_year=birth, period=period, data_source=source,
+            )
+
+        for title, composer_name in NAMED_WORKS:
+            Work.objects.create(
+                title=title, title_sort_key=sort_key(title),
+                composer=composers[composer_name], instrumentation_category=solo,
+                is_public=True, data_source=source,
+            )
+
+        # Filler so there are 3 pages at page_size=50 (128 works total).
+        composer_list = list(composers.values())
+        for i in range(1, 121):
+            title = f'Etude No. {i:03d}'
+            Work.objects.create(
+                title=title, title_sort_key=sort_key(title),
+                composer=composer_list[i % len(composer_list)],
+                instrumentation_category=(solo if i % 2 else duo),
+                is_public=True, data_source=source,
+            )
+
+        self.stdout.write(self.style.SUCCESS(
+            f'Seeded {Composer.objects.count()} composers and {Work.objects.count()} works.'
+        ))

@@ -18,7 +18,7 @@ import '../styles/shared/ListPage.css';
 
 // Map the generic filter state to the /works/ backend query params.
 // Module-level so the reference is stable across renders.
-function buildWorkFilterParams(filters: TableFilterState): Record<string, string | number> {
+export function buildWorkFilterParams(filters: TableFilterState): Record<string, string | number> {
   const params: Record<string, string | number> = {};
   if (filters.instrumentation) params.instrumentation = filters.instrumentation;
   if (filters.country) params.composer_country = filters.country;

@@ -21,6 +21,8 @@ package-lock.json
 *.log
 db.sqlite3
 db.sqlite3-journal
+db_e2e.sqlite3
+db_e2e.sqlite3-journal
 /staticfiles/
 /media/
 

@@ -27,7 +27,7 @@ interface ComposerWork {
 }
 
 // Map the generic filter state to the /composers/ backend query params. Module-level = stable ref.
-function buildComposerFilterParams(filters: TableFilterState): Record<string, string | number> {
+export function buildComposerFilterParams(filters: TableFilterState): Record<string, string | number> {
   const params: Record<string, string | number> = {};
   if (filters.instrumentation) params.instrumentation = filters.instrumentation;
   if (filters.country) params.country_name = filters.country;

@@ -1,0 +1,7 @@
+# Test/dev dependencies (see SDD: e2e-and-unit-testing-suite)
+-r requirements.txt
+
+pytest>=8,<9
+pytest-django>=4,<5
+pytest-cov>=5
+factory-boy>=3,<4
