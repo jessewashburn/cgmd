@@ -97,18 +97,17 @@ export default function WorkDetailPage() {
         )}
       </section>
 
-      {(work.imslp_url || work.sheerpluck_url || work.youtube_url || work.score_url) && (
-        <section className="detail-section">
-          <h2>External Links</h2>
-          <ExternalLinks
-            imslpUrl={work.imslp_url}
-            sheerpluckUrl={work.sheerpluck_url}
-            youtubeUrl={work.youtube_url}
-            scoreUrl={work.score_url}
-            variant="detailed"
-          />
-        </section>
-      )}
+      <section className="detail-section">
+        <h2>External Links</h2>
+        <ExternalLinks
+          imslpUrl={work.imslp_url}
+          sheerpluckUrl={work.sheerpluck_url}
+          youtubeUrl={work.youtube_url}
+          scoreUrl={work.score_url}
+          youtubeSearchQuery={[work.title, work.composer?.full_name].filter(Boolean).join(' ')}
+          variant="detailed"
+        />
+      </section>
     </div>
   );
 }

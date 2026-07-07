@@ -129,6 +129,7 @@ export default function HomePage() {
               sheerpluckUrl={highlightedWork.sheerpluck_url}
               youtubeUrl={highlightedWork.youtube_url}
               scoreUrl={highlightedWork.score_url}
+              youtubeSearchQuery={[highlightedWork.title, highlightedWork.composer?.full_name].filter(Boolean).join(' ')}
               variant="default"
             />
           </div>

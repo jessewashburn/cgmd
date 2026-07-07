@@ -3,6 +3,9 @@ interface ExternalLinksProps {
   sheerpluckUrl?: string | null;
   youtubeUrl?: string | null;
   scoreUrl?: string | null;
+  // When set, renders a "Search on YouTube" link built from this query
+  // (e.g. "<title> <composer>"). Independent of a stored youtubeUrl.
+  youtubeSearchQuery?: string | null;
   variant?: 'default' | 'detailed';
 }
 
@@ -11,9 +14,14 @@ export default function ExternalLinks({
   sheerpluckUrl,
   youtubeUrl,
   scoreUrl,
+  youtubeSearchQuery,
   variant = 'default'
 }: ExternalLinksProps) {
-  const hasAnyLink = imslpUrl || sheerpluckUrl || youtubeUrl || scoreUrl;
+  const youtubeSearchUrl = youtubeSearchQuery
+    ? `https://www.youtube.com/results?search_query=${encodeURIComponent(youtubeSearchQuery)}`
+    : null;
+
+  const hasAnyLink = imslpUrl || sheerpluckUrl || youtubeUrl || scoreUrl || youtubeSearchUrl;
 
   if (!hasAnyLink) return null;
 
@@ -53,13 +61,23 @@ export default function ExternalLinks({
         </a>
       )}
       {scoreUrl && (
-        <a 
-          href={scoreUrl} 
-          target="_blank" 
-          rel="noopener noreferrer" 
+        <a
+          href={scoreUrl}
+          target="_blank"
+          rel="noopener noreferrer"
           className={linkClass}
         >
           View Score →
+        </a>
+      )}
+      {youtubeSearchUrl && (
+        <a
+          href={youtubeSearchUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={linkClass}
+        >
+          Search on YouTube →
         </a>
       )}
     </div>
