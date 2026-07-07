@@ -103,6 +103,23 @@ class WorkListSerializer(serializers.ModelSerializer):
         return None
 
 
+class ComposerWorkSerializer(serializers.ModelSerializer):
+    """Minimal serializer for the works nested under a composer row."""
+    instrumentation_category = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Work
+        fields = ['id', 'title', 'instrumentation_category']
+
+    def get_instrumentation_category(self, obj):
+        if obj.instrumentation_category:
+            return {
+                'id': obj.instrumentation_category.id,
+                'name': obj.instrumentation_category.name
+            }
+        return None
+
+
 class WorkDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer for individual work view"""
     composer = ComposerListSerializer(read_only=True)

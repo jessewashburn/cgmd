@@ -39,6 +39,24 @@ def test_composer_works_subresource(api):
     WorkFactory(composer=composer, title='Sub Work')
     res = api.get(f'/api/composers/{composer.id}/works/')
     assert res.status_code == 200
+    work = res.data['results'][0]
+    # Slim payload: only the fields the expandable composer row renders.
+    assert set(work.keys()) == {'id', 'title', 'instrumentation_category'}
+    # No back-reference to the composer (that field caused an N+1 lookup).
+    assert 'composer' not in work
+
+
+def test_composer_works_no_n_plus_one(api, django_assert_max_num_queries):
+    """Serializing many works must not scale queries with the work count."""
+    composer = ComposerFactory()
+    for i in range(10):
+        WorkFactory(composer=composer, title=f'Work {i}')
+    # Constant query budget regardless of how many works are returned:
+    # get_object + count + page of works (instrumentation joined via select_related).
+    with django_assert_max_num_queries(5):
+        res = api.get(f'/api/composers/{composer.id}/works/')
+    assert res.status_code == 200
+    assert len(res.data['results']) == 10
 
 
 def test_composers_by_period(api):

@@ -19,7 +19,7 @@ from .serializers import (
     CountrySerializer, InstrumentationCategorySerializer,
     DataSourceSerializer, ComposerListSerializer, ComposerDetailSerializer,
     WorkListSerializer, WorkDetailSerializer, TagSerializer,
-    WorkSearchSerializer, UserSuggestionSerializer
+    WorkSearchSerializer, UserSuggestionSerializer, ComposerWorkSerializer
 )
 from .permissions import IsAdminOrReadOnly, IsHardcodedAdmin
 
@@ -594,15 +594,15 @@ class ComposerViewSet(viewsets.ModelViewSet):
         works = Work.objects.filter(
             composer=composer,
             is_public=True
-        ).select_related('instrumentation_category').distinct().order_by('title_sort_key')
-        
+        ).select_related('instrumentation_category').order_by('title_sort_key')
+
         # Add pagination for better performance
         from rest_framework.pagination import PageNumberPagination
         paginator = PageNumberPagination()
         paginator.page_size = 50  # Limit to 50 works per page
         paginated_works = paginator.paginate_queryset(works, request)
-        
-        serializer = WorkListSerializer(paginated_works, many=True)
+
+        serializer = ComposerWorkSerializer(paginated_works, many=True)
         return paginator.get_paginated_response(serializer.data)
 
 
