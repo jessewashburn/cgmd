@@ -619,9 +619,12 @@ class WorkViewSet(viewsets.ModelViewSet):
     by_instrumentation: Filter by instrumentation category
     by_difficulty: Filter by difficulty level
     """
+    # No .distinct(): none of the list filters join across a to-many relation
+    # (instrumentation/composer_country are forward FK joins), so DISTINCT only added a
+    # needless sort on the hot path.
     queryset = Work.objects.select_related(
         'composer', 'instrumentation_category'
-    ).filter(is_public=True).distinct()
+    ).filter(is_public=True)
     permission_classes = [IsAdminOrReadOnly]
     filter_backends = [DjangoFilterBackend, TrigramSearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'title_normalized', 'composer__full_name', 'opus_number']

@@ -19,12 +19,23 @@
 
 ```bash
 cd frontend && npm run build && cd ..
-aws s3 sync frontend/dist/ s3://cgmd-frontend-1770139819 --delete
-aws cloudfront create-invalidation --distribution-id E23JJN25WLB1B9 --paths "/*"
+
+# 1) Hashed assets — long-lived immutable cache (everything except index.html)
+aws s3 sync frontend/dist/ s3://cgmd-frontend-1770139819 --delete \
+  --exclude index.html --cache-control "public, max-age=31536000, immutable"
+
+# 2) index.html — never cache the entrypoint, so new asset hashes are picked up instantly
+aws s3 cp frontend/dist/index.html s3://cgmd-frontend-1770139819/index.html \
+  --content-type text/html --cache-control "no-cache"
+
+# 3) Invalidate only the HTML (assets are content-hashed + immutable — no need to invalidate them)
+aws cloudfront create-invalidation --distribution-id E23JJN25WLB1B9 --paths "/index.html"
 ```
 
-The invalidation clears CloudFront's cache of the old hashed assets; without it the CDN keeps
-serving the previous bundle until TTL expiry. Status:
+Because assets are content-hashed and marked `immutable`, browsers and CloudFront cache them
+indefinitely and only ever refetch `index.html` (`no-cache`) — fast repeat visits, and you only
+invalidate `/index.html` per deploy. **Do not** drop the `--cache-control` flags: without them S3
+stores no caching directive and every asset is needlessly revalidated. Status:
 
 ```bash
 aws cloudfront get-invalidation --distribution-id E23JJN25WLB1B9 --id <INVALIDATION_ID> --query "Invalidation.Status"

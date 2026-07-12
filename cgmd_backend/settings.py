@@ -96,7 +96,14 @@ DATABASES = {
         'PASSWORD': os.getenv('DB_PASSWORD', ''),
         'HOST': os.getenv('DB_HOST', 'db.bdnyxtqjybodndiedgfg.supabase.co'),
         'PORT': os.getenv('DB_PORT', '5432'),
-        'CONN_MAX_AGE': 0,  # Disable connection pooling to avoid timeouts
+        # Reuse connections across requests. Opening a fresh TCP+TLS handshake on every
+        # request is the dominant latency cost (badly amplified when the DB is cross-region).
+        # CONN_HEALTH_CHECKS pings a pooled connection before reuse and transparently
+        # reconnects if it went stale — which is what the old "avoid timeouts" workaround
+        # was guarding against. Override with DB_CONN_MAX_AGE=0 if ever fronted by a
+        # transaction-mode pooler that dislikes long-lived connections.
+        'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '600')),
+        'CONN_HEALTH_CHECKS': True,
         'OPTIONS': {
             'connect_timeout': 60,  # Increased timeout for large imports
             'options': '-c statement_timeout=300000',  # 5 minute query timeout
