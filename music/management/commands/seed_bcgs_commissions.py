@@ -136,17 +136,20 @@ class Command(BaseCommand):
         else:
             first_name, last_name = '', full_name
 
-        # Order-independent token-set match: the catalogue mixes "First Last",
-        # surname-first "Last, First", and compound surnames ("Bouche Caro, Gabriel"),
-        # all of which share the same set of name tokens.
-        target = name_tokens(full_name)
-        composer = None
-        # Narrow the scan with the longest (most distinctive) token, then compare sets.
-        anchor = max(target, key=len)
-        for cand in Composer.objects.filter(name_normalized__icontains=anchor):
-            if name_tokens(cand.full_name) == target:
-                composer = cand
-                break
+        # 1) Exact normalized full-name match takes priority. This pins e.g. "Jordan
+        #    Chase" to the natural-order record even when a surname-first homonym like
+        #    "Jordan, Chase" (a different person, "Chase Jordan") shares the token set.
+        composer = Composer.objects.filter(name_normalized=normalize(full_name)).first()
+        # 2) Otherwise, order-independent token-set match: the catalogue mixes "First
+        #    Last", surname-first "Last, First", and compound surnames ("Bouche Caro,
+        #    Gabriel"), all of which share the same set of name tokens.
+        if composer is None:
+            target = name_tokens(full_name)
+            anchor = max(target, key=len)  # scan on the most distinctive token
+            for cand in Composer.objects.filter(name_normalized__icontains=anchor):
+                if name_tokens(cand.full_name) == target:
+                    composer = cand
+                    break
         if composer:
             self.stats['composers_reused'] += 1
             # Safe enrichment: fill a missing birth year only; never overwrite one.
