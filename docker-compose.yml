@@ -1,0 +1,44 @@
+# Consolidated stack: Django (web) + PostgreSQL 16 (db) co-located on one host.
+# Mirrors the target EC2 t4g.small deployment so local == prod. Secrets come from
+# the environment / a local .env passed to compose; never bake them into the image.
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-postgres}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-postgres}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    # Optional: expose 5432 to the host for local psql/debugging only.
+    # ports: ["127.0.0.1:5432:5432"]
+
+  web:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DEBUG: "False"
+      SECRET_KEY: ${SECRET_KEY:-dev-insecure-change-me}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      # Localhost DB round trip — the whole point of consolidation.
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-postgres}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_CONN_MAX_AGE: "600"
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+    ports:
+      - "8000:8000"
+
+volumes:
+  pgdata:

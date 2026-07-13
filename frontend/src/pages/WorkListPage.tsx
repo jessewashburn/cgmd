@@ -30,6 +30,9 @@ export function buildWorkFilterParams(filters: TableFilterState): Record<string,
   return params;
 }
 
+// Module-level stable reference so the memoized DataTable isn't re-rendered on every keystroke.
+const getWorkRowKey = (work: WorkListItem) => work.id;
+
 const columns: Column<WorkListItem>[] = [
   {
     header: 'Work Title',
@@ -122,7 +125,7 @@ export default function WorkListPage() {
               <DataTable
                 data={table.rows}
                 columns={columns}
-                getRowKey={(work) => work.id}
+                getRowKey={getWorkRowKey}
                 sort={table.sort}
                 onSort={table.onSort}
                 emptyMessage="No works found. Try adjusting your search."

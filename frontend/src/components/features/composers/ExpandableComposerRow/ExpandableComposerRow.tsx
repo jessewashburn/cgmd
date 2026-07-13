@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { ComposerListItem } from '../../../../types';
 import SuggestionButton from '../../SuggestionButton';
@@ -19,7 +19,7 @@ interface ExpandableComposerRowProps {
   onLoadWorks: (composerId: number) => Promise<ComposerWork[]>;
 }
 
-export default function ExpandableComposerRow({ composer, onLoadWorks }: ExpandableComposerRowProps) {
+function ExpandableComposerRow({ composer, onLoadWorks }: ExpandableComposerRowProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [works, setWorks] = useState<ComposerWork[]>([]);
   const [loadingWorks, setLoadingWorks] = useState(false);
@@ -108,3 +108,7 @@ export default function ExpandableComposerRow({ composer, onLoadWorks }: Expanda
     </>
   );
 }
+
+// Memoized so re-rendering the composer list (e.g. on every search keystroke) doesn't
+// re-render all 50 rows. Relies on stable `composer` (from the query rows) and `onLoadWorks`.
+export default memo(ExpandableComposerRow);

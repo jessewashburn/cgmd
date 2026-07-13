@@ -63,20 +63,42 @@ class TrigramSearchFilter(filters.SearchFilter):
             return queryset
         
         # PostgreSQL trigram similarity search
-        similarity_threshold = 0.3  # Balanced threshold: allows typos but filters weak matches
         search_fields = getattr(view, 'search_fields', [])
-        
+
         if not search_fields:
             return queryset
-        
+
         q_objects = Q()
         for search_field in search_fields:
             field = search_field.lstrip('^=@')
             annotation_name = f'{field.replace("__", "_")}_similarity'
+            # Annotate similarity for RANKING only (computed on the filtered subset).
             queryset = queryset.annotate(
                 **{annotation_name: TrigramSimilarity(field, search_param)}
             )
-            q_objects |= Q(**{f'{annotation_name}__gt': similarity_threshold})
+            # FILTER with the `%` operator (trigram_similar lookup) so the GIN trigram
+            # indexes are used. Using `similarity() > 0.3` here instead forces a full
+            # sequential scan. The `%` operator matches when similarity >=
+            # pg_trgm.similarity_threshold (default 0.3, our intended value).
+            if '__' in field:
+                # A related-model field (e.g. works.composer__full_name). Matching it
+                # directly puts the `%` on the *joined* table, so the OR spans the join
+                # and can't use a single-table index. Resolving it to an inline subquery
+                # doesn't help either — a SubPlan inside an OR blocks bitmap index scans,
+                # forcing a seq scan of this table. So resolve the related rows to a
+                # literal id list FIRST (cheap, index-backed on the related table); a
+                # literal `IN (...)` list CAN be bitmap-OR'd with the trigram indexes.
+                relation, subfield = field.split('__', 1)
+                related_model = queryset.model._meta.get_field(relation).related_model
+                related_ids = list(
+                    related_model.objects.filter(
+                        **{f'{subfield}__trigram_similar': search_param}
+                    ).values_list('pk', flat=True)[:2000]
+                )
+                if related_ids:
+                    q_objects |= Q(**{f'{relation}__in': related_ids})
+            else:
+                q_objects |= Q(**{f'{field}__trigram_similar': search_param})
         
         if q_objects:
             similarity_fields = [

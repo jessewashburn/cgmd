@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useRef } from 'react';
 import api from '../lib/api';
 import { ComposerListItem } from '../types';
 import { useInstrumentations } from '../hooks/useInstrumentations';
@@ -59,27 +59,28 @@ export default function ComposerListPage() {
     buildFilterParams: buildComposerFilterParams,
   });
 
-  // Cache loaded works to prevent unnecessary API calls
-  const [loadedWorksCache, setLoadedWorksCache] = useState<Record<number, ComposerWork[]>>({});
+  // Cache loaded works in a ref so this callback stays referentially stable —
+  // required for the memoized ExpandableComposerRow to skip re-renders.
+  const worksCacheRef = useRef<Record<number, ComposerWork[]>>({});
 
   const sortArrow = (field: string) =>
     table.sort.key === field ? (table.sort.dir === 'asc' ? ' ↑' : ' ↓') : '';
 
-  const loadComposerWorks = async (composerId: number): Promise<ComposerWork[]> => {
-    if (loadedWorksCache[composerId]) {
-      return loadedWorksCache[composerId];
+  const loadComposerWorks = useCallback(async (composerId: number): Promise<ComposerWork[]> => {
+    if (worksCacheRef.current[composerId]) {
+      return worksCacheRef.current[composerId];
     }
 
     try {
       const response = await api.get(`/composers/${composerId}/works/`);
       const works = response.data.results || response.data;
-      setLoadedWorksCache((prev) => ({ ...prev, [composerId]: works }));
+      worksCacheRef.current[composerId] = works;
       return works;
     } catch (error) {
       console.error('Error loading composer works:', error);
       return [];
     }
-  };
+  }, []);
 
   return (
     <div className="list-page">

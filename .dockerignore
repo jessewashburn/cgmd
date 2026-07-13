@@ -1,0 +1,32 @@
+# Keep the image small and secret-free.
+.git
+.gitignore
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+
+# Secrets / local env (env is injected via compose / EB, never baked in)
+.env
+.env.*
+!.env.example
+
+# Frontend is deployed separately to S3/CloudFront
+frontend
+
+# Bulk data files and one-off CSVs (not needed at runtime)
+data
+*.csv
+
+# Build/deploy tooling not used inside the container
+.elasticbeanstalk
+.ebextensions
+.platform
+staticfiles
+
+# Docs and editor cruft
+*.md
+docs
+.vscode
+.idea

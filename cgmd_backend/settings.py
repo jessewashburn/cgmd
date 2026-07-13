@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.postgres',  # registers the __trigram_similar (%) lookup for index-backed fuzzy search
     # Third-party apps
     'rest_framework',
     'django_filters',

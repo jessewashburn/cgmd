@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, memo } from 'react';
 import './DataTable.css';
 
 export interface Column<T> {
@@ -28,7 +28,7 @@ interface DataTableProps<T> {
   onSort?: (key: string) => void;
 }
 
-export default function DataTable<T>({
+function DataTable<T>({
   data,
   columns,
   getRowKey,
@@ -136,3 +136,8 @@ export default function DataTable<T>({
     </div>
   );
 }
+
+// Memoized so typing in a search box (which re-renders the page) doesn't re-render
+// the whole table when data/columns/sort are unchanged. Requires callers to pass
+// stable columns/getRowKey/onSort references. Cast preserves the generic signature.
+export default memo(DataTable) as typeof DataTable;

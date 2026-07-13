@@ -1,30 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import api from '../lib/api';
 
 /**
- * Custom hook to fetch and sort country names.
+ * Fetch and sort country names. Static reference data — cached indefinitely
+ * (staleTime: Infinity) and shared across pages via TanStack Query, so it isn't
+ * re-fetched on every list-page visit.
  */
 export function useCountries() {
-  const [countries, setCountries] = useState<string[]>([]);
+  const { data } = useQuery({
+    queryKey: ['countries'],
+    queryFn: async () => {
+      const response = await api.get('/countries/', { params: { page_size: 500 } });
+      const countryList = response.data.results || response.data;
+      return (countryList as Array<{ name: string }>)
+        .map((country) => country.name)
+        .sort((a, b) => a.localeCompare(b));
+    },
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
 
-  useEffect(() => {
-    const fetchCountries = async () => {
-      try {
-        const response = await api.get('/countries/', {
-          params: { page_size: 500 }
-        });
-        const countryList = response.data.results || response.data;
-        const countryNames = countryList
-          .map((country: any) => country.name)
-          .sort((a: string, b: string) => a.localeCompare(b));
-        setCountries(countryNames);
-      } catch (err) {
-        console.error('Error fetching countries:', err);
-      }
-    };
-    
-    fetchCountries();
-  }, []);
-
-  return countries;
+  return data ?? [];
 }
