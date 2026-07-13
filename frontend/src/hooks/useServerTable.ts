@@ -84,10 +84,15 @@ export function useServerTable<Row>(config: ServerTableConfig): ServerTableResul
 
   const manualSort = sortParam != null;
   const effectiveOrdering = sortParam ?? defaultOrdering;
-  const sort: SortState = {
-    key: effectiveOrdering.replace(/^-/, ''),
-    dir: effectiveOrdering.startsWith('-') ? 'desc' : 'asc',
-  };
+  // Memoized so the `sort` reference is stable across unrelated re-renders (e.g. every
+  // search keystroke). A fresh object here would bust React.memo on the consuming table.
+  const sort: SortState = useMemo(
+    () => ({
+      key: effectiveOrdering.replace(/^-/, ''),
+      dir: effectiveOrdering.startsWith('-') ? 'desc' : 'asc',
+    }),
+    [effectiveOrdering],
+  );
 
   const updateParams = useCallback(
     (mutate: (next: URLSearchParams) => void, opts?: { replace?: boolean }) => {
@@ -217,6 +222,12 @@ export function useServerTable<Row>(config: ServerTableConfig): ServerTableResul
   }, [updateParams]);
 
   // --- Build the request params + query ---
+  // Stable reference so consumers/children memoized on `filters` aren't re-rendered needlessly.
+  const filters = useMemo<TableFilterState>(
+    () => ({ instrumentation, country, yearRange }),
+    [instrumentation, country, yearRange],
+  );
+
   const orderingToSend = debouncedSearch && !manualSort ? undefined : effectiveOrdering;
 
   const queryParams = useMemo(() => {
@@ -260,7 +271,7 @@ export function useServerTable<Row>(config: ServerTableConfig): ServerTableResul
     sort,
     onSort,
 
-    filters: { instrumentation, country, yearRange },
+    filters,
     setInstrumentation,
     setCountry,
     setYearRange,

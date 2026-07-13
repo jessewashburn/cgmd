@@ -33,12 +33,14 @@ export default function SuggestionButton({ itemType, itemData }: SuggestionButto
         </svg>
       </button>
 
-      <SuggestionModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        itemType={itemType}
-        itemData={itemData}
-      />
+      {isModalOpen && (
+        <SuggestionModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          itemType={itemType}
+          itemData={itemData}
+        />
+      )}
     </>
   );
 }
