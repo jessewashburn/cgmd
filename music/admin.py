@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
-    Country, InstrumentationCategory, DataSource, 
-    Composer, ComposerAlias, Work, Tag, WorkTag, WorkSearchIndex, UserSuggestion
+    Country, InstrumentationCategory, DataSource,
+    Composer, ComposerAlias, Work, Tag, WorkTag, WorkLink, WorkSearchIndex, UserSuggestion
 )
 
 
@@ -75,6 +75,12 @@ class WorkTagInline(admin.TabularInline):
     extra = 1
 
 
+class WorkLinkInline(admin.TabularInline):
+    model = WorkLink
+    extra = 1
+    fields = ('label', 'url', 'link_type', 'sort_order')
+
+
 @admin.register(Work)
 class WorkAdmin(admin.ModelAdmin):
     list_display = ['title', 'composer', 'composition_year', 'difficulty_level', 'is_public', 'is_verified', 'view_count']
@@ -104,7 +110,7 @@ class WorkAdmin(admin.ModelAdmin):
             'fields': ('is_public', 'is_verified', 'needs_review', 'view_count', 'admin_notes', 'created_at', 'updated_at')
         }),
     )
-    inlines = [WorkTagInline]
+    inlines = [WorkTagInline, WorkLinkInline]
 
 
 @admin.register(Tag)

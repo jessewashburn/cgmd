@@ -1,19 +1,23 @@
+import type { WorkLink } from '../../../types';
+
 interface ExternalLinksProps {
-  imslpUrl?: string | null;
-  sheerpluckUrl?: string | null;
-  youtubeUrl?: string | null;
-  scoreUrl?: string | null;
+  links?: WorkLink[] | null;
   // When set, renders a "Search on YouTube" link built from this query
-  // (e.g. "<title> <composer>"). Independent of a stored youtubeUrl.
+  // (e.g. "<title> <composer>"). Independent of any stored link.
   youtubeSearchQuery?: string | null;
   variant?: 'default' | 'detailed';
 }
 
+// Per-type call-to-action verb; falls back to the link's own label otherwise.
+const DETAILED_CTA: Partial<Record<WorkLink['link_type'], string>> = {
+  imslp: 'View on IMSLP',
+  sheerpluck: 'View on SheerPluck',
+  youtube: 'Watch on YouTube',
+  score: 'View Score',
+};
+
 export default function ExternalLinks({
-  imslpUrl,
-  sheerpluckUrl,
-  youtubeUrl,
-  scoreUrl,
+  links,
   youtubeSearchQuery,
   variant = 'default'
 }: ExternalLinksProps) {
@@ -21,7 +25,8 @@ export default function ExternalLinks({
     ? `https://www.youtube.com/results?search_query=${encodeURIComponent(youtubeSearchQuery)}`
     : null;
 
-  const hasAnyLink = imslpUrl || sheerpluckUrl || youtubeUrl || scoreUrl || youtubeSearchUrl;
+  const items = links ?? [];
+  const hasAnyLink = items.length > 0 || youtubeSearchUrl;
 
   if (!hasAnyLink) return null;
 
@@ -30,46 +35,21 @@ export default function ExternalLinks({
 
   return (
     <div className={containerClass}>
-      {imslpUrl && (
-        <a 
-          href={imslpUrl} 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className={linkClass}
-        >
-          View on IMSLP →
-        </a>
-      )}
-      {sheerpluckUrl && (
-        <a 
-          href={sheerpluckUrl} 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className={linkClass}
-        >
-          View on SheerPluck →
-        </a>
-      )}
-      {youtubeUrl && (
-        <a 
-          href={youtubeUrl} 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className={linkClass}
-        >
-          {variant === 'detailed' ? 'Watch on YouTube' : 'View on YouTube'} →
-        </a>
-      )}
-      {scoreUrl && (
-        <a
-          href={scoreUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={linkClass}
-        >
-          View Score →
-        </a>
-      )}
+      {items.map((link, index) => {
+        const label =
+          variant === 'detailed' ? DETAILED_CTA[link.link_type] ?? link.label : link.label;
+        return (
+          <a
+            key={link.id ?? `${link.link_type}-${index}`}
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={linkClass}
+          >
+            {label} →
+          </a>
+        );
+      })}
       {youtubeSearchUrl && (
         <a
           href={youtubeSearchUrl}

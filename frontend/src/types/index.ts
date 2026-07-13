@@ -48,9 +48,28 @@ export interface Work {
   sheerpluck_url: string | null;
   youtube_url: string | null;
   score_url: string | null;
+  links: WorkLink[];
   tags: Tag[];
   created_at: string;
   updated_at: string;
+}
+
+// A bespoke external link on a work. `id` is null for links synthesized from
+// the legacy fixed URL columns (imslp/sheerpluck/youtube/score).
+export interface WorkLink {
+  id: number | null;
+  label: string;
+  url: string;
+  link_type:
+    | 'imslp'
+    | 'sheerpluck'
+    | 'youtube'
+    | 'score'
+    | 'publisher'
+    | 'recording'
+    | 'commission'
+    | 'other';
+  sort_order: number;
 }
 
 // Lightweight type for work lists (matches WorkListSerializer)

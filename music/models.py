@@ -292,6 +292,46 @@ class WorkTag(models.Model):
         return f"{self.work.title} - {self.tag.name}"
 
 
+class WorkLink(models.Model):
+    """Arbitrary labeled external links for a work (bespoke links).
+
+    Complements the fixed URL columns on Work (imslp_url, sheerpluck_url,
+    youtube_url, score_url) for any link that doesn't fit those buckets.
+    """
+
+    LINK_TYPE_CHOICES = [
+        ('imslp', 'IMSLP'),
+        ('sheerpluck', 'SheerPluck'),
+        ('youtube', 'YouTube'),
+        ('score', 'Score'),
+        ('publisher', 'Publisher'),
+        ('recording', 'Recording'),
+        ('commission', 'Commission / Program'),
+        ('other', 'Other'),
+    ]
+
+    work = models.ForeignKey(Work, on_delete=models.CASCADE, related_name='links')
+    label = models.CharField(max_length=200, help_text="Display text, e.g. 'BCGS Commission'")
+    url = models.URLField(max_length=1000)
+    link_type = models.CharField(max_length=20, choices=LINK_TYPE_CHOICES, default='other',
+                                 help_text="Drives the icon / CTA styling; label is the shown text")
+    sort_order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'work_links'
+        ordering = ['sort_order', 'id']
+        unique_together = ('work', 'url')
+        indexes = [
+            models.Index(fields=['work'], name='idx_work_links_work'),
+            models.Index(fields=['link_type'], name='idx_work_links_type'),
+        ]
+
+    def __str__(self):
+        return f"{self.label} -> {self.work.title}"
+
+
 class WorkSearchIndex(models.Model):
     """Denormalized table for ultra-fast search combining composer and work data"""
     work = models.OneToOneField(Work, on_delete=models.CASCADE, related_name='search_index')

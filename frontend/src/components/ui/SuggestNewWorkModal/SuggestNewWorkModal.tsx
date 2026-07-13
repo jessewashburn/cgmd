@@ -14,6 +14,7 @@ export default function SuggestNewWorkModal({ isOpen, onClose }: SuggestNewWorkM
     composer_death_year: '',
     composer_country: '',
     work_title: '',
+    composition_year: '',
     instrumentation_detail: '',
     comment: '',
   });
@@ -39,7 +40,10 @@ export default function SuggestNewWorkModal({ isOpen, onClose }: SuggestNewWorkM
         suggestion_type: 'new_work',
         title: `New work: ${formData.work_title} by ${formData.composer_name}`,
         description: formData.comment || 'New work suggestion submitted via form',
-        suggested_data: formData,
+        suggested_data: {
+          ...formData,
+          composition_year: formData.composition_year ? Number(formData.composition_year) : null,
+        },
       });
 
       setSubmitStatus('success');
@@ -52,6 +56,7 @@ export default function SuggestNewWorkModal({ isOpen, onClose }: SuggestNewWorkM
           composer_death_year: '',
           composer_country: '',
           work_title: '',
+          composition_year: '',
           instrumentation_detail: '',
           comment: '',
         });
@@ -137,14 +142,27 @@ export default function SuggestNewWorkModal({ isOpen, onClose }: SuggestNewWorkM
               />
             </div>
 
-            <div className="form-group">
-              <label>Instrumentation</label>
-              <input
-                type="text"
-                value={formData.instrumentation_detail}
-                onChange={(e) => handleChange('instrumentation_detail', e.target.value)}
-                placeholder="e.g., Solo Guitar, Guitar Duo"
-              />
+            <div className="form-row">
+              <div className="form-group">
+                <label>Instrumentation</label>
+                <input
+                  type="text"
+                  value={formData.instrumentation_detail}
+                  onChange={(e) => handleChange('instrumentation_detail', e.target.value)}
+                  placeholder="e.g., Solo Guitar, Guitar Duo"
+                />
+              </div>
+              <div className="form-group">
+                <label>Composition Year</label>
+                <input
+                  type="number"
+                  value={formData.composition_year}
+                  onChange={(e) => handleChange('composition_year', e.target.value)}
+                  placeholder="e.g., 2006"
+                  min={1000}
+                  max={2100}
+                />
+              </div>
             </div>
           </div>
 

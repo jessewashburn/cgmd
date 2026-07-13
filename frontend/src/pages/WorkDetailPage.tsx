@@ -100,10 +100,7 @@ export default function WorkDetailPage() {
       <section className="detail-section">
         <h2>External Links</h2>
         <ExternalLinks
-          imslpUrl={work.imslp_url}
-          sheerpluckUrl={work.sheerpluck_url}
-          youtubeUrl={work.youtube_url}
-          scoreUrl={work.score_url}
+          links={work.links}
           youtubeSearchQuery={[work.title, work.composer?.full_name].filter(Boolean).join(' ')}
           variant="detailed"
         />

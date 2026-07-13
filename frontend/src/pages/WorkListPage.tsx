@@ -24,8 +24,10 @@ export function buildWorkFilterParams(filters: TableFilterState): Record<string,
   if (filters.country) params.composer_country = filters.country;
   const [min, max] = filters.yearRange;
   if (min !== DEFAULT_YEAR_MIN || max !== DEFAULT_YEAR_MAX) {
-    params.composer_birth_year_min = min;
-    params.composer_birth_year_max = max;
+    // Combined year filter: matches composer birth year, falling back to the
+    // work's composition year when the composer has no birth year on record.
+    params.year_min = min;
+    params.year_max = max;
   }
   return params;
 }
@@ -91,7 +93,7 @@ export default function WorkListPage() {
       />
 
       <AdvancedFilters
-        yearRangeLabel="Composer Dates Range"
+        yearRangeLabel="Year (composer b., else composed)"
         yearRange={table.filters.yearRange}
         onYearRangeChange={table.setYearRange}
         selectedInstrumentation={table.filters.instrumentation}

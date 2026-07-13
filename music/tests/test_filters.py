@@ -44,3 +44,27 @@ def test_works_composer_country_and_birth_year_contract(api):
     titles = [w['title'] for w in res.data['results']]
     assert 'Spanish Work' in titles
     assert 'French Work' not in titles
+
+
+def test_works_combined_year_filter_falls_back_to_composition_year(api):
+    """year_min/year_max match composer birth year, falling back to composition
+    year only when the composer has no birth year on record."""
+    no_birth = ComposerFactory(last_name='NoDob', birth_year=None)
+    born_1850 = ComposerFactory(last_name='Old', birth_year=1850)
+    born_1950 = ComposerFactory(last_name='Living', birth_year=1950)
+
+    # Included via composition-year fallback (composer birth year unknown).
+    WorkFactory(title='Fallback Hit', composer=no_birth, composition_year=2006)
+    # Excluded: composer born 1850 is primary; 2006 composition year is ignored.
+    WorkFactory(title='Birth Year Wins', composer=born_1850, composition_year=2006)
+    # Included on birth year even though composed long before the range.
+    WorkFactory(title='Birth In Range', composer=born_1950, composition_year=1600)
+    # Excluded: fallback composition year out of range.
+    WorkFactory(title='Fallback Miss', composer=no_birth, composition_year=1600)
+
+    res = api.get('/api/works/', {'year_min': 1900, 'year_max': 2007})
+    titles = [w['title'] for w in res.data['results']]
+    assert 'Fallback Hit' in titles
+    assert 'Birth In Range' in titles
+    assert 'Birth Year Wins' not in titles
+    assert 'Fallback Miss' not in titles

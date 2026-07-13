@@ -5,7 +5,7 @@ Serializers for the Classical Guitar Music Database API.
 from rest_framework import serializers
 from .models import (
     Country, InstrumentationCategory, DataSource,
-    Composer, ComposerAlias, Work, Tag, WorkTag, UserSuggestion
+    Composer, ComposerAlias, Work, Tag, WorkTag, WorkLink, UserSuggestion
 )
 
 
@@ -120,13 +120,22 @@ class ComposerWorkSerializer(serializers.ModelSerializer):
         return None
 
 
+class WorkLinkSerializer(serializers.ModelSerializer):
+    """Serializer for a bespoke WorkLink row"""
+
+    class Meta:
+        model = WorkLink
+        fields = ['id', 'label', 'url', 'link_type', 'sort_order']
+
+
 class WorkDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer for individual work view"""
     composer = ComposerListSerializer(read_only=True)
     instrumentation_category = InstrumentationCategorySerializer(read_only=True)
     data_source = DataSourceSerializer(read_only=True)
     tags = serializers.SerializerMethodField()
-    
+    links = serializers.SerializerMethodField()
+
     class Meta:
         model = Work
         fields = [
@@ -137,13 +146,33 @@ class WorkDetailSerializer(serializers.ModelSerializer):
             'instrumentation_category', 'instrumentation_detail',
             'difficulty_level', 'description', 'movements',
             'imslp_url', 'sheerpluck_url', 'youtube_url', 'score_url',
+            'links',
             'data_source', 'is_verified', 'view_count',
             'tags', 'created_at', 'updated_at'
         ]
-    
+
     def get_tags(self, obj):
         work_tags = obj.work_tags.select_related('tag')
         return [wt.tag.name for wt in work_tags]
+
+    def get_links(self, obj):
+        """Unified list merging the fixed legacy URL columns and bespoke WorkLink rows."""
+        merged = []
+        legacy = [
+            (obj.imslp_url, 'View on IMSLP', 'imslp'),
+            (obj.sheerpluck_url, 'View on SheerPluck', 'sheerpluck'),
+            (obj.youtube_url, 'Watch on YouTube', 'youtube'),
+            (obj.score_url, 'View Score', 'score'),
+        ]
+        for url, label, link_type in legacy:
+            if url:
+                merged.append({
+                    'id': None, 'label': label, 'url': url,
+                    'link_type': link_type, 'sort_order': -1,
+                })
+        for wl in obj.links.all():
+            merged.append(WorkLinkSerializer(wl).data)
+        return merged
 
 
 class TagSerializer(serializers.ModelSerializer):

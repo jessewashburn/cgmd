@@ -679,9 +679,9 @@ class WorkViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = super().get_queryset()
         
-        # Add prefetch for detail views only (tags needed there)
+        # Add prefetch for detail views only (tags + bespoke links needed there)
         if self.action == 'retrieve':
-            queryset = queryset.prefetch_related('work_tags__tag').select_related('data_source')
+            queryset = queryset.prefetch_related('work_tags__tag', 'links').select_related('data_source')
         
         # Get the requested ordering parameter, but only apply when not searching
         search_param = self.request.query_params.get('search', '')
@@ -737,7 +737,24 @@ class WorkViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(composer__birth_year__gte=composer_birth_min)
         if composer_birth_max:
             queryset = queryset.filter(composer__birth_year__lte=composer_birth_max)
-        
+
+        # Combined year range: match on composer birth year, falling back to the work's
+        # composition year when the composer has no birth year on record. This keeps the
+        # composer-era semantic for the catalogue that has composer dates while still
+        # surfacing works whose composer birth year is unknown (e.g. living commission
+        # composers) by their composition year.
+        combined_min = self.request.query_params.get('year_min')
+        combined_max = self.request.query_params.get('year_max')
+
+        if combined_min or combined_max:
+            lo = int(combined_min) if combined_min else -32768
+            hi = int(combined_max) if combined_max else 32767
+            queryset = queryset.filter(
+                Q(composer__birth_year__gte=lo, composer__birth_year__lte=hi) |
+                Q(composer__birth_year__isnull=True,
+                  composition_year__gte=lo, composition_year__lte=hi)
+            )
+
         # Filter by difficulty range
         difficulty_min = self.request.query_params.get('difficulty_min')
         difficulty_max = self.request.query_params.get('difficulty_max')
@@ -856,7 +873,7 @@ class WorkViewSet(viewsets.ModelViewSet):
         rand = math.sin(seed) * 10000
         index = int((rand - math.floor(rand)) * total)
 
-        work = self.get_queryset().prefetch_related('work_tags__tag').select_related(
+        work = self.get_queryset().prefetch_related('work_tags__tag', 'links').select_related(
             'composer__country', 'instrumentation_category', 'data_source'
         )[index]
 

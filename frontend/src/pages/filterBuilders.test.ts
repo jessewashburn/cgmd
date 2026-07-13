@@ -23,8 +23,8 @@ describe('buildWorkFilterParams', () => {
     expect(params).toEqual({
       instrumentation: 'Guitar solo',
       composer_country: 'Spain',
-      composer_birth_year_min: 1800,
-      composer_birth_year_max: 1900,
+      year_min: 1800,
+      year_max: 1900,
     });
   });
 

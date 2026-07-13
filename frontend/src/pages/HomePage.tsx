@@ -125,10 +125,7 @@ export default function HomePage() {
             )}
 
             <ExternalLinks
-              imslpUrl={highlightedWork.imslp_url}
-              sheerpluckUrl={highlightedWork.sheerpluck_url}
-              youtubeUrl={highlightedWork.youtube_url}
-              scoreUrl={highlightedWork.score_url}
+              links={highlightedWork.links}
               youtubeSearchQuery={[highlightedWork.title, highlightedWork.composer?.full_name].filter(Boolean).join(' ')}
               variant="default"
             />
