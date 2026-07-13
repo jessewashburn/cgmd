@@ -30,7 +30,7 @@ BCGS_LINK_LABEL = "BCGS Commission"
 COMMISSIONS = [
     ("Christopher Gainey", 1981, True, "Chupacabra", "Guitar Duo", 2006),
     ("Gabriela Lena Frank", 1972, False, "Inca Dances", "Guitar and String Quartet", 2008),
-    ("Matthew Cmiel", None, False, "I Wasted Time / Now Doth Time Waste Me", "Solo Guitar", 2009),
+    ("Matthew Cmiel", None, False, "I Wasted Time, and Now Doth Time Waste Me", "Solo Guitar", 2009),
     ("Christopher William Pierce", 1974, False, "Three Pieces for Two Guitars", "Guitar Duo", 2010),
     ("John Belkot", None, False, "Der duft des winters", "Solo Guitar", 2014),
     ("Joshua Bornfield", None, False, "Murmurs", "Guitar Quartet", 2014),
@@ -50,6 +50,19 @@ COMMISSIONS = [
 def normalize(text):
     """Lowercase, strip accents to ASCII (matches Composer/Work.save)."""
     return unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8').lower()
+
+
+def name_tokens(text):
+    """Order-independent set of name tokens (handles 'Last, First' vs 'First Last'
+    and compound surnames like 'Bouche Caro')."""
+    cleaned = normalize(text).replace(',', ' ')
+    return frozenset(tok for tok in cleaned.split() if tok)
+
+
+def title_key(text):
+    """Punctuation/whitespace-insensitive title key so 'X / Y' and 'X, and Y' or
+    ellipsis variants still match."""
+    return ''.join(ch for ch in normalize(text) if ch.isalnum())
 
 
 class Command(BaseCommand):
@@ -123,12 +136,17 @@ class Command(BaseCommand):
         else:
             first_name, last_name = '', full_name
 
-        # Match on the direct form *and* the "Last, First" form, since much of the
-        # existing catalogue was imported surname-first (e.g. "Gainey, Christopher").
-        candidates = {normalize(full_name)}
-        if first_name:
-            candidates.add(normalize(f"{last_name}, {first_name}"))
-        composer = Composer.objects.filter(name_normalized__in=list(candidates)).first()
+        # Order-independent token-set match: the catalogue mixes "First Last",
+        # surname-first "Last, First", and compound surnames ("Bouche Caro, Gabriel"),
+        # all of which share the same set of name tokens.
+        target = name_tokens(full_name)
+        composer = None
+        # Narrow the scan with the longest (most distinctive) token, then compare sets.
+        anchor = max(target, key=len)
+        for cand in Composer.objects.filter(name_normalized__icontains=anchor):
+            if name_tokens(cand.full_name) == target:
+                composer = cand
+                break
         if composer:
             self.stats['composers_reused'] += 1
             # Safe enrichment: fill a missing birth year only; never overwrite one.
@@ -173,9 +191,13 @@ class Command(BaseCommand):
 
         work = None
         if composer.pk:
-            work = Work.objects.filter(
-                composer=composer, title_normalized=title_normalized,
-            ).first()
+            # Punctuation/whitespace-insensitive match against this composer's works,
+            # so "X / Y" vs "X, and Y" and ellipsis variants still reuse.
+            key = title_key(title)
+            for existing in composer.works.all():
+                if title_key(existing.title) == key:
+                    work = existing
+                    break
 
         if work:
             self.stats['works_reused'] += 1
