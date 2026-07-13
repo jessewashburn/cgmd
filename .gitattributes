@@ -1,0 +1,6 @@
+# Shell scripts and the container entrypoint MUST use LF, or the Docker image's
+# `#!/bin/sh` shebang breaks at runtime ("exec .../docker-entrypoint.sh: no such
+# file or directory") and the web container crash-loops. Forcing eol=lf here keeps
+# `git archive` / checkouts correct even on Windows with core.autocrlf=true.
+*.sh text eol=lf
+docker-entrypoint.sh text eol=lf

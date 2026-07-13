@@ -1,6 +1,12 @@
-# AWS Elastic Beanstalk Deployment Guide
+# AWS Deployment Guide
 
-## Live environment (fill-ins for the commands below)
+> **Architecture (current, as of 2026-07-13):** everything is on AWS. The backend is a
+> **Docker Compose stack on a single EC2 instance** (Django + gunicorn, PostgreSQL 17, and
+> Caddy for TLS/reverse-proxy — all co-located). The frontend is a **static build in S3 fronted
+> by CloudFront**. **There is no Elastic Beanstalk and no Supabase** — both were removed (see the
+> `aws-cost-consolidation` SDD). Ignore any `eb ...` commands; `eb status` will say "not found".
+
+## Live environment
 
 | Thing | Value |
 |-------|-------|
@@ -8,14 +14,62 @@
 | CloudFront distribution ID | `E23JJN25WLB1B9` |
 | CloudFront domain | `djow2c4ppl2zz.cloudfront.net` |
 | Frontend S3 bucket | `cgmd-frontend-1770139819` |
-| Backend (EB) env | `cgmd-production` (region `us-east-1`) |
-| Backend origin | `cgmd-production.eba-u32mituc.us-east-1.elasticbeanstalk.com` |
+| **Backend EC2 instance** | `cgmd-api` — `i-07ce6430cf3cdc27b`, t4g.micro, **`52.205.65.184`** (`us-east-1`) |
+| **SSH** | `ssh -i ~/.ssh/cgmd-prod.pem ec2-user@52.205.65.184` (key name `cgmd-prod`, Amazon Linux) |
+| **App dir on host** | `/home/ec2-user/cgmd` — **NOT a git checkout** (git is not installed on the host) |
+| **Prod compose file** | `docker-compose.prod.yml` (services: `db` postgres:17, `web`, `caddy`) |
+| **Containers** | `cgmd-db-1`, `cgmd-web-1`, `cgmd-caddy-1` |
+| **Database** | PostgreSQL 17 **in a container on the host** (`db`/`web` env: `DB_NAME=cgmd`, `DB_USER=cgmd`), volume `pgdata`. Not RDS, not Supabase. |
 
-> One CloudFront distribution fronts both origins: `/` → S3 (frontend), `/api` → Elastic Beanstalk (backend).
-> The bucket name and distribution ID are **identifiers, not secrets** — safe to keep here. Real
-> secrets (AWS keys, DB password, `SECRET_KEY`) live in `~/.aws/`, EB env vars, and the gitignored `.env`.
+> One CloudFront distribution fronts both origins: `/` → S3 (frontend), `/api` → the EC2 host's
+> Caddy → `web:8000`. Bucket name and distribution ID are identifiers, not secrets. Real secrets
+> (`SECRET_KEY`, DB password) live in the host-only `/home/ec2-user/cgmd/.env` (gitignored, **never**
+> overwrite it during a deploy).
 
-## Quick redeploy (frontend)
+## Backend deploy (Docker on EC2)
+
+The host has no git and is populated by copying code in, then rebuilding the `web` image
+(`build: .`). Its container entrypoint runs `migrate --noinput` + `collectstatic` on start.
+
+**Host-only files that must NOT be clobbered:** `.env`, `Caddyfile`, `docker-compose.prod.yml`,
+`backup.sh`. Ship only application code.
+
+```bash
+# 1) From the local repo (committed HEAD), ship app code to the host. git archive keeps it
+#    deterministic and skips untracked/__pycache__. Add paths as needed.
+git archive --format=tar HEAD music cgmd_backend requirements.txt Dockerfile docker-entrypoint.sh \
+  | ssh -i ~/.ssh/cgmd-prod.pem ec2-user@52.205.65.184 "tar -xf - -C /home/ec2-user/cgmd"
+
+# 2) Rebuild + restart the web container (db/caddy keep running). The entrypoint migrates.
+ssh -i ~/.ssh/cgmd-prod.pem ec2-user@52.205.65.184 \
+  "cd /home/ec2-user/cgmd && docker compose -f docker-compose.prod.yml up -d --build web"
+
+# 3) Confirm it came up cleanly (look for 'Applying ... OK' and gunicorn 'Listening at').
+ssh -i ~/.ssh/cgmd-prod.pem ec2-user@52.205.65.184 "docker logs cgmd-web-1 --tail 20"
+```
+
+> ⚠️ **CRLF gotcha (bit us on 2026-07-13):** if `docker-entrypoint.sh` reaches the host with
+> Windows CRLF line endings, the container crash-loops with
+> `exec /app/docker-entrypoint.sh: no such file or directory` (the `#!/bin/sh` shebang resolves to
+> `/bin/sh\r`) — **and `/api` goes down.** This repo's [.gitattributes](.gitattributes) now pins
+> `*.sh` to `eol=lf` so `git archive` emits LF. If you ever see the crash loop anyway, fix in place:
+> `sed -i 's/\r$//' docker-entrypoint.sh` on the host, then rebuild.
+
+### Management commands / migrations / DB access (on the host)
+
+```bash
+# Run any Django management command against prod:
+docker exec cgmd-web-1 python manage.py <command>        # e.g. seed_bcgs_commissions --dry-run
+docker exec cgmd-web-1 python manage.py migrate           # (also runs automatically on web start)
+
+# psql into the prod database:
+docker exec -it cgmd-db-1 psql -U cgmd -d cgmd
+```
+
+## Frontend deploy (S3 + CloudFront)
+
+Build locally (Vite bakes `VITE_API_URL=https://www.solmuapp.com/api` from `.env.production`),
+sync to S3 with correct cache headers, invalidate only `index.html`.
 
 ```bash
 cd frontend && npm run build && cd ..
@@ -28,273 +82,57 @@ aws s3 sync frontend/dist/ s3://cgmd-frontend-1770139819 --delete \
 aws s3 cp frontend/dist/index.html s3://cgmd-frontend-1770139819/index.html \
   --content-type text/html --cache-control "no-cache"
 
-# 3) Invalidate only the HTML (assets are content-hashed + immutable — no need to invalidate them)
+# 3) Invalidate only the HTML (assets are content-hashed + immutable)
 aws cloudfront create-invalidation --distribution-id E23JJN25WLB1B9 --paths "/index.html"
 ```
 
-Because assets are content-hashed and marked `immutable`, browsers and CloudFront cache them
-indefinitely and only ever refetch `index.html` (`no-cache`) — fast repeat visits, and you only
-invalidate `/index.html` per deploy. **Do not** drop the `--cache-control` flags: without them S3
-stores no caching directive and every asset is needlessly revalidated. Status:
+**Do not** drop the `--cache-control` flags. Verify:
 
 ```bash
 aws cloudfront get-invalidation --distribution-id E23JJN25WLB1B9 --id <INVALIDATION_ID> --query "Invalidation.Status"
+# Confirm the live entrypoint references the new bundle hash:
+curl -s https://www.solmuapp.com/ | grep -o 'index-[A-Za-z0-9_-]*\.js'
 ```
 
-## Prerequisites
-1. AWS Account with Free Tier eligible
-2. AWS CLI installed
-3. EB CLI installed
+## Deploy order
 
-## Installation
+When a change spans both tiers **and** the frontend consumes a new API field, deploy **backend
+first, then frontend** — otherwise the new frontend requests a field the old API doesn't return.
+(Example: the `WorkLink` `links` array — the new `ExternalLinks` reads `work.links`.)
 
-### 1. Install AWS CLI
+## Prerequisites / tooling
+- AWS CLI + credentials configured locally (IAM user `solmu`, account `429541886989`, region `us-east-1`).
+- SSH key `~/.ssh/cgmd-prod.pem` for the EC2 host.
+- Docker + Docker Compose v2 are installed on the EC2 host (invoked as `docker compose`).
+
+## Useful commands
+
 ```bash
-# Windows (using MSI installer)
-Download from: https://awscli.amazonaws.com/AWSCLIV2.msi
+# Backend (on the EC2 host)
+docker ps                                              # container status
+docker logs cgmd-web-1 --tail 50                       # app logs
+docker compose -f docker-compose.prod.yml restart web  # restart without rebuild
+docker compose -f docker-compose.prod.yml up -d --build web  # rebuild + restart after code change
 
-# Or via pip
-pip install awscli
-```
-
-### 2. Install EB CLI
-```bash
-pip install awsebcli
-```
-
-### 3. Configure AWS Credentials
-```bash
-aws configure
-# Enter:
-# - AWS Access Key ID
-# - AWS Secret Access Key
-# - Default region: us-east-1 (or your preferred region)
-# - Default output format: json
-```
-
-## Backend Deployment (Elastic Beanstalk)
-
-### 1. Initialize Elastic Beanstalk
-```bash
-cd c:/Users/jesse/cgmd
-eb init
-
-# Choose:
-# - Region: us-east-1 (or your preferred)
-# - Application name: cgmd-backend
-# - Platform: Python 3.12
-# - CodeCommit: No
-# - SSH: Yes (for debugging)
-```
-
-### 2. Create Environment
-```bash
-eb create cgmd-production
-
-# This will:
-# - Create an EC2 instance (t3.micro - FREE tier)
-# - Install Python 3.12
-# - Install dependencies from requirements.txt
-# - Run migrations
-# - Collect static files
-```
-
-### 3. Set Environment Variables
-```bash
-eb setenv \
-  SECRET_KEY="your-secret-key-here-generate-a-new-one" \
-  DEBUG=False \
-  ALLOWED_HOSTS=".elasticbeanstalk.com" \
-  DATABASE_URL="postgresql://postgres.yosugfmarodnempvvbru:YOUR-PASSWORD@aws-0-us-west-2.pooler.supabase.com:5432/postgres" \
-  CORS_ALLOWED_ORIGINS="https://your-cloudfront-url.cloudfront.net"
-```
-
-### 4. Deploy
-```bash
-eb deploy
-```
-
-### 5. Get Backend URL
-```bash
-eb status
-# Look for "CNAME" - this is your backend URL
-# Example: cgmd-production.us-east-1.elasticbeanstalk.com
-```
-
-## Frontend Deployment (S3 + CloudFront)
-
-### 1. Build Frontend
-```bash
-cd frontend
-npm install
-npm run build
-```
-
-### 2. Create S3 Bucket
-```bash
-# Replace 'your-unique-bucket-name' with something unique
-aws s3 mb s3://cgmd-frontend-bucket --region us-east-1
-
-# Enable static website hosting
-aws s3 website s3://cgmd-frontend-bucket --index-document index.html --error-document index.html
-```
-
-### 3. Configure Bucket Policy (Public Access)
-Create a file `s3-policy.json`:
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "PublicReadGetObject",
-      "Effect": "Allow",
-      "Principal": "*",
-      "Action": "s3:GetObject",
-      "Resource": "arn:aws:s3:::cgmd-frontend-bucket/*"
-    }
-  ]
-}
-```
-
-Apply policy:
-```bash
-aws s3api put-bucket-policy --bucket cgmd-frontend-bucket --policy file://s3-policy.json
-```
-
-### 4. Upload Frontend Files
-```bash
-aws s3 sync frontend/dist/ s3://cgmd-frontend-bucket --delete
-```
-
-### 5. Create CloudFront Distribution (CDN)
-```bash
-aws cloudfront create-distribution \
-  --origin-domain-name cgmd-frontend-bucket.s3.amazonaws.com \
-  --default-root-object index.html
-```
-
-Or create via AWS Console:
-1. Go to CloudFront console
-2. Create Distribution
-3. Origin: Your S3 bucket
-4. Default root object: `index.html`
-5. Error pages: Add custom error response for 404 → /index.html (for React routing)
-
-### 6. Update Frontend Environment Variable
-Update `frontend/.env.production`:
-```
-VITE_API_URL=https://cgmd-production.us-east-1.elasticbeanstalk.com/api
-```
-
-Rebuild and redeploy:
-```bash
-npm run build
-aws s3 sync frontend/dist/ s3://cgmd-frontend-bucket --delete
-
-# Invalidate CloudFront cache
-aws cloudfront create-invalidation --distribution-id YOUR-DIST-ID --paths "/*"
-```
-
-## Useful Commands
-
-### Backend (EB)
-```bash
-eb status                  # Check environment status
-eb logs                    # View logs
-eb ssh                     # SSH into instance
-eb deploy                  # Deploy new version
-eb setenv KEY=value        # Set environment variable
-eb open                    # Open app in browser
-eb terminate              # Delete environment (careful!)
-```
-
-### Frontend (S3)
-```bash
-# Sync new files
+# Frontend (from local)
 aws s3 sync frontend/dist/ s3://cgmd-frontend-1770139819 --delete
-
-# Invalidate CloudFront cache
-aws cloudfront create-invalidation --distribution-id E23JJN25WLB1B9 --paths "/*"
+aws cloudfront create-invalidation --distribution-id E23JJN25WLB1B9 --paths "/index.html"
 ```
 
-## Cost Estimate
-- **EB t3.micro**: FREE (first year) → $8-10/month
-- **S3**: ~$0.50/month (for storage)
-- **CloudFront**: ~$1/month (first 1TB free)
-- **Data Transfer**: Included in free tier
-- **Total**: FREE first year, then ~$10/month
+## CloudFront OAC + private bucket — ✅ APPLIED (2026-07-07)
 
-## Monitoring
-- EB Health: `eb health`
-- CloudWatch Logs: AWS Console → CloudWatch
-- S3 Usage: AWS Console → S3 → Metrics
+The frontend bucket is **private** and served **only** through CloudFront via Origin Access Control
+(OAC id `E3MZSI8QOW4DL1`). Block Public Access is ON, the public bucket policy is removed (see
+[s3-policy.json](s3-policy.json) for the applied OAC policy), and S3 static website hosting is
+disabled. The distribution's frontend origin is the S3 **REST** endpoint
+(`cgmd-frontend-1770139819.s3.us-east-1.amazonaws.com`); SPA deep links work via CloudFront custom
+error responses (403/404 → `/index.html`, 200). Direct S3 access returns 403/404. Deploy commands
+are unchanged — you still `aws s3 sync` + invalidate; only *how CloudFront reads the bucket* changed.
 
-## Troubleshooting
-```bash
-# View recent logs
-eb logs --stream
-
-# SSH into instance
-eb ssh
-
-# Check Django logs
-sudo cat /var/log/eb-engine.log
-sudo cat /var/log/web.stdout.log
-```
-
-## Hardening: CloudFront OAC + private bucket — ✅ APPLIED (2026-07-07)
-
-**Current state:** the frontend bucket is **private** and served **only** through CloudFront via
-**Origin Access Control** (OAC id `E3MZSI8QOW4DL1`). Block Public Access is ON, the public bucket
-policy is removed (see [s3-policy.json](s3-policy.json) for the applied OAC policy), and S3 static
-website hosting is disabled. The distribution's frontend origin is the S3 **REST** endpoint
-(`cgmd-frontend-1770139819.s3.us-east-1.amazonaws.com`), and SPA deep links work via CloudFront
-custom error responses (403/404 → `/index.html`, 200). Direct S3 access now returns 403/404.
-
-> Verified: `www.solmuapp.com/` and `/api/*` → 200; direct S3 REST/website endpoints → 403/404.
-
-The migration steps below are retained for reference / disaster recovery.
-
-Migration outline (do in this order; test in the CloudFront console first):
-
-1. **Create an OAC** (CloudFront console → Security → Origin access) of type "S3", signing = SigV4.
-2. **Switch the origin** on distribution `E23JJN25WLB1B9`: change the frontend origin from the S3
-   *website* endpoint to the S3 *REST* endpoint (`cgmd-frontend-1770139819.s3.us-east-1.amazonaws.com`)
-   and attach the OAC. Keep the SPA fallback by configuring a **custom error response**:
-   403/404 → `/index.html` (200), since a private bucket returns 403 for missing keys.
-3. **Replace the public bucket policy** with an OAC policy that allows only this distribution:
-   ```json
-   {
-     "Version": "2012-10-17",
-     "Statement": [{
-       "Sid": "AllowCloudFrontOAC",
-       "Effect": "Allow",
-       "Principal": { "Service": "cloudfront.amazonaws.com" },
-       "Action": "s3:GetObject",
-       "Resource": "arn:aws:s3:::cgmd-frontend-1770139819/*",
-       "Condition": {
-         "StringEquals": { "AWS:SourceArn": "arn:aws:cloudfront::<ACCOUNT_ID>:distribution/E23JJN25WLB1B9" }
-       }
-     }]
-   }
-   ```
-4. **Turn off public access**: bucket → Permissions → Block Public Access = **On**; remove the old
-   public-read policy. You can also disable S3 "Static website hosting" (OAC uses the REST endpoint).
-5. **Invalidate** (`/*`) and verify: `https://www.solmuapp.com` works; the raw
-   `*.s3-website-*` / `*.s3.amazonaws.com` URLs now return **403**.
-
-Deploy commands are unchanged — you still `aws s3 sync` + invalidate; only *how CloudFront reads the
-bucket* changes.
-
-## Production Checklist
-- [ ] SECRET_KEY set (new, random value)
-- [ ] DEBUG=False
-- [ ] ALLOWED_HOSTS configured
-- [ ] DATABASE_URL points to Supabase
-- [ ] CORS_ALLOWED_ORIGINS includes CloudFront URL
-- [ ] Frontend VITE_API_URL points to EB backend
-- [ ] SSL/HTTPS enabled (EB provides this automatically)
-- [ ] Migrations run successfully
-- [ ] Static files collected
-- [ ] CloudFront error pages configured for SPA routing
-- [x] Frontend bucket private + served via CloudFront OAC (applied 2026-07-07) — see "Hardening" above
+## Production checklist
+- [x] Backend on EC2 Docker (db + web + caddy) — Elastic Beanstalk removed
+- [x] Database is the on-host PostgreSQL 17 container (`cgmd`/`cgmd`) — Supabase removed
+- [x] Frontend bucket private + served via CloudFront OAC (2026-07-07)
+- [x] `*.sh` pinned to LF via `.gitattributes` (prevents entrypoint crash-loop)
+- [ ] `SECRET_KEY` / `DEBUG=False` / `ALLOWED_HOSTS` / DB creds set in host `.env`
+- [ ] Frontend `VITE_API_URL` → `https://www.solmuapp.com/api`
