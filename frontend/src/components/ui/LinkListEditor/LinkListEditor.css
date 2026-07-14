@@ -16,6 +16,15 @@
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius-sm);
   font-size: 14px;
+  /* Force light control rendering so device dark mode doesn't paint these
+     fields dark against the white modal (see index.css color-scheme). */
+  color-scheme: light;
+  background-color: #ffffff;
+  color: var(--color-text);
+}
+
+.link-editor-input::placeholder {
+  color: var(--color-text-muted);
 }
 
 .link-editor-label {

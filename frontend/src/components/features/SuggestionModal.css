@@ -106,6 +106,14 @@
   font-size: 15px;
   font-family: inherit;
   transition: border-color 0.2s;
+  color-scheme: light;
+  background-color: #ffffff;
+  color: var(--color-text);
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: var(--color-text-muted);
 }
 
 .form-group input:focus,

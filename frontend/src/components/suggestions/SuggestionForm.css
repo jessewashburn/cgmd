@@ -65,6 +65,16 @@
   font-size: 15px;
   transition: border-color 0.2s;
   font-family: inherit;
+  /* Force light control rendering so device dark mode doesn't paint these
+     fields dark against the white form card (see index.css color-scheme). */
+  color-scheme: light;
+  background-color: #ffffff;
+  color: #1a202c;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: #a0aec0;
 }
 
 .form-group input:focus,
