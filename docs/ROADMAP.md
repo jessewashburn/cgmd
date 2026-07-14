@@ -8,11 +8,11 @@ A public, searchable classical guitar database built to preserve and share class
 
 ### Tech Stack
 
-- **Frontend**: TypeScript + React (GitHub Pages)
+- **Frontend**: TypeScript + React (S3 + CloudFront)
 - **Backend**: Python + Django + Django REST Framework
-- **Database**: PostgreSQL (Supabase)
+- **Database**: PostgreSQL 17 (self-hosted container on the EC2 host)
 - **Admin**: Django Admin with custom permissions
-- **Hosting**: Django on cloud platform + PostgreSQL (Supabase) + HTTPS
+- **Hosting**: All AWS — EC2 Docker Compose (Django + Postgres + Caddy) + S3/CloudFront + HTTPS (see AWS_DEPLOYMENT.md)
 
 ---
 

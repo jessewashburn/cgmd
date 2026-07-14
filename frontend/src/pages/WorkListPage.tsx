@@ -51,7 +51,9 @@ const columns: Column<WorkListItem>[] = [
   },
   {
     header: 'Composer',
-    sortKey: 'composer__full_name',
+    // Sort by surname then given name, matching the Composers page "Name" column.
+    // (composer.full_name is stored "Last, First", so this stays visually consistent.)
+    sortKey: 'composer__last_name,composer__first_name',
     accessor: (work) =>
       work.composer ? (
         <Link to={`/composers/${work.composer.id}`} className="link-secondary">

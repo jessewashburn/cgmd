@@ -51,4 +51,4 @@ class WorkFactory(DjangoModelFactory):
     composer = factory.SubFactory(ComposerFactory)
     instrumentation_category = factory.SubFactory(InstrumentationCategoryFactory)
     is_public = True
-    # title_normalized is auto-populated by Work.save()
+    # title_normalized and title_sort_key are auto-populated by Work.save()

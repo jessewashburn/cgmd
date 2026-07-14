@@ -6,7 +6,7 @@ from rest_framework import viewsets, filters, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Q, Count, Value
+from django.db.models import Q, Count, Value, F
 from django.db.models.functions import Length, Replace, Lower
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -143,6 +143,40 @@ class TrigramSearchFilter(filters.SearchFilter):
                 queryset = queryset.order_by('-relevance_score')
         
         return queryset
+
+
+class NullsLastOrderingFilter(filters.OrderingFilter):
+    """OrderingFilter with two shared refinements for the list endpoints:
+
+    1. NULLs always sort last, in both directions (Postgres otherwise puts them
+       first on DESC), so a birth_year/country/etc. sort never leads with blanks.
+    2. The *default* ordering (the view's `ordering` attribute) is skipped while a
+       `search` term is active, so the trigram relevance ranking applied upstream by
+       TrigramSearchFilter survives. An explicit `?ordering=` always wins — that is
+       the "search-relevance vs. manual-sort" rule the frontend relies on.
+    """
+
+    def filter_queryset(self, request, queryset, view):
+        ordering = self.get_ordering(request, queryset, view)
+        if not ordering:
+            return queryset
+        has_explicit_param = bool(request.query_params.get(self.ordering_param))
+        if not has_explicit_param and request.query_params.get('search'):
+            # Only the view default would apply here — defer to relevance ranking.
+            return queryset
+        return queryset.order_by(*self._nulls_last(ordering))
+
+    @staticmethod
+    def _nulls_last(ordering):
+        terms = []
+        for term in ordering:
+            descending = term.startswith('-')
+            field = term[1:] if descending else term
+            expr = F(field)
+            terms.append(
+                expr.desc(nulls_last=True) if descending else expr.asc(nulls_last=True)
+            )
+        return terms
 
 
 class CountryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -307,23 +341,18 @@ class ComposerViewSet(viewsets.ModelViewSet):
         work_count=Count('works', filter=Q(works__is_public=True))
     )
     permission_classes = [IsAdminOrReadOnly]
-    filter_backends = [DjangoFilterBackend, TrigramSearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, TrigramSearchFilter, NullsLastOrderingFilter]
     search_fields = ['full_name', 'last_name', 'first_name', 'name_normalized']
     ordering_fields = [
-        'last_name', 
-        'first_name', 
-        'birth_year', 
+        'last_name',
+        'first_name',
+        'birth_year',
         'death_year',
         'country__name',
         'work_count'
     ]
-    # Default ordering only when not searching - similarity search has its own ordering
-    def get_ordering(self):
-        """Override ordering to let search results use similarity ranking"""
-        search_param = self.request.query_params.get('search', '')
-        if search_param:
-            return None  # Let TrigramSearchFilter handle ordering
-        return ['last_name', 'first_name']  # Default alphabetical ordering
+    # Default browse order; skipped while searching (see NullsLastOrderingFilter).
+    ordering = ['last_name', 'first_name']
     filterset_fields = ['period', 'country', 'is_living', 'is_verified']
     
     def get_queryset(self):
@@ -565,15 +594,9 @@ class ComposerViewSet(viewsets.ModelViewSet):
             
             # Use direct filter on country fields - no joins needed, so no duplicates
             queryset = queryset.filter(query)
-        
-        # Force ordering after all filters, but only when not searching
-        # When searching, let TrigramSearchFilter handle similarity-based ordering
-        search_param = self.request.query_params.get('search', '')
-        if not search_param:
-            ordering = self.request.query_params.get('ordering', 'last_name,first_name')
-            order_fields = [f.strip() for f in ordering.split(',')]
-            return queryset.order_by(*order_fields)
-        
+
+        # Ordering (default + search-relevance handling) is owned by
+        # NullsLastOrderingFilter, so no manual order_by here.
         return queryset
     
     def get_serializer_class(self):
@@ -648,29 +671,29 @@ class WorkViewSet(viewsets.ModelViewSet):
         'composer', 'instrumentation_category'
     ).filter(is_public=True)
     permission_classes = [IsAdminOrReadOnly]
-    filter_backends = [DjangoFilterBackend, TrigramSearchFilter, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, TrigramSearchFilter, NullsLastOrderingFilter]
     search_fields = ['title', 'title_normalized', 'composer__full_name', 'opus_number']
     ordering_fields = [
-        'title', 
-        'title_sort_key', 
-        'composition_year', 
-        'difficulty_level', 
+        'title',
+        'title_sort_key',
+        'composition_year',
+        'difficulty_level',
         'view_count',
+        # `composer__full_name` kept for back-compat with already-shared ?sort= links;
+        # the UI now sorts the Composer column by last/first name to match /composers.
         'composer__full_name',
+        'composer__last_name',
+        'composer__first_name',
         'instrumentation_category__name'
     ]
     filterset_fields = [
-        'composer', 'instrumentation_category', 
+        'composer', 'instrumentation_category',
         'difficulty_level', 'is_verified'
     ]
-    
-    def get_ordering(self):
-        """Override ordering to let search results use similarity ranking"""
-        search_param = self.request.query_params.get('search', '')
-        if search_param:
-            return None  # Let TrigramSearchFilter handle ordering
-        return ['title_sort_key']  # Default alphabetical ordering
-    
+    # Default browse order: the maintained alphabetical sort key. Skipped while
+    # searching (see NullsLastOrderingFilter) so relevance ranking survives.
+    ordering = ['title_sort_key']
+
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return WorkDetailSerializer
@@ -682,16 +705,10 @@ class WorkViewSet(viewsets.ModelViewSet):
         # Add prefetch for detail views only (tags + bespoke links needed there)
         if self.action == 'retrieve':
             queryset = queryset.prefetch_related('work_tags__tag', 'links').select_related('data_source')
-        
-        # Get the requested ordering parameter, but only apply when not searching
-        search_param = self.request.query_params.get('search', '')
-        ordering_param = self.request.query_params.get('ordering', 'title')
-        
-        # If sorting by title (default or explicit) and not searching, use title_normalized for better performance
-        if not search_param and (ordering_param == 'title' or ordering_param == '-title'):
-            # Use title_normalized which has leading symbols stripped and is indexed
-            queryset = queryset.order_by('title_normalized' if ordering_param == 'title' else '-title_normalized')
-        
+
+        # Ordering (default title_sort_key + search-relevance handling) is owned by
+        # NullsLastOrderingFilter, so no manual order_by here.
+
         # Filter by instrumentation (using instrumentation name)
         # Handles variations like "solo" matching "Solo Guitar", "Guitar Solo", etc.
         instrumentation = self.request.query_params.get('instrumentation')

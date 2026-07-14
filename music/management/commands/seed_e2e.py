@@ -4,8 +4,6 @@ Seed a small, deterministic dataset for Playwright E2E tests.
 Safe by design: refuses to run against a database that already holds a large
 number of works (i.e. real data) unless --force is passed.
 """
-import unicodedata
-
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
@@ -32,16 +30,6 @@ NAMED_WORKS = [
     ('Bachianas Brasileiras No. 5', 'Heitor Villa-Lobos'),
     ('La Catedral', 'Agustín Barrios'),
 ]
-
-
-def sort_key(title: str) -> str:
-    return (
-        unicodedata.normalize('NFKD', title)
-        .encode('ascii', 'ignore')
-        .decode('utf-8')
-        .lower()
-        .strip()
-    )
 
 
 class Command(BaseCommand):
@@ -82,9 +70,10 @@ class Command(BaseCommand):
                 country=country, birth_year=birth, period=period, data_source=source,
             )
 
+        # title_sort_key is maintained by Work.save() (via generate_title_sort_key).
         for title, composer_name in NAMED_WORKS:
             Work.objects.create(
-                title=title, title_sort_key=sort_key(title),
+                title=title,
                 composer=composers[composer_name], instrumentation_category=solo,
                 is_public=True, data_source=source,
             )
@@ -94,7 +83,7 @@ class Command(BaseCommand):
         for i in range(1, 121):
             title = f'Etude No. {i:03d}'
             Work.objects.create(
-                title=title, title_sort_key=sort_key(title),
+                title=title,
                 composer=composer_list[i % len(composer_list)],
                 instrumentation_category=(solo if i % 2 else duo),
                 is_public=True, data_source=source,

@@ -24,6 +24,7 @@ test('search ranks by relevance until a header is clicked', async ({ page }) => 
   await expect(page).not.toHaveURL(/sort=/); // relevance: no ordering param
 
   // Click a non-default column so the assertion is unambiguous (asc).
-  await page.getByText('Composer', { exact: true }).click();
-  await expect(page).toHaveURL(/sort=composer__full_name/); // manual sort overrides relevance
+  await page.getByRole('button', { name: 'Composer', exact: true }).click();
+  // Composer column sorts by surname then given name; manual sort overrides relevance.
+  await expect(page).toHaveURL(/sort=composer__last_name/);
 });

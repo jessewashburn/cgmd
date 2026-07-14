@@ -3,6 +3,27 @@ import { test, expect } from '@playwright/test';
 const SEARCH = 'Search for works or composers...';
 
 test.describe('Works table', () => {
+  test('default sort is alphabetical by title; toggling reverses it', async ({ page }) => {
+    await page.goto('/works');
+    await expect(page.locator('tbody tr').first()).toBeVisible();
+
+    // Default ascending by title_sort_key: "Bachianas…" folds to the front of the seed set.
+    await expect(page.locator('tbody tr').first()).toContainText('Bachianas Brasileiras No. 5');
+
+    // First click flips to descending → the alphabetically-last seeded title leads.
+    await page.getByText('Work Title').click();
+    await expect(page).toHaveURL(/sort=-title_sort_key/);
+    await expect(page.locator('tbody tr').first()).toContainText('Variations on a Theme by Mozart');
+  });
+
+  test('sorting by composer orders by surname', async ({ page }) => {
+    await page.goto('/works');
+    await page.getByRole('button', { name: 'Composer', exact: true }).click();
+    // Ascending by composer last name → Barrios leads the seeded composers.
+    await expect(page).toHaveURL(/sort=composer__last_name/);
+    await expect(page.locator('tbody tr').first()).toContainText('Barrios');
+  });
+
   test('sorting toggles order, updates the URL, and resets to page 1', async ({ page }) => {
     await page.goto('/works');
     await expect(page.getByRole('heading', { name: 'Works' })).toBeVisible();
@@ -28,8 +49,9 @@ test.describe('Works table', () => {
     await page.getByRole('button', { name: 'Next' }).click();
     await expect(page).toHaveURL(/page=2/);
     await expect(page.locator('tbody tr').first()).toBeVisible(); // never empty
-    const after = await page.locator('tbody tr').first().textContent();
-    expect(after).not.toBe(before);
+    // keepPreviousData holds page 1 rows visible during the fetch, so poll until the
+    // page 2 rows actually render rather than reading textContent in that race window.
+    await expect(page.locator('tbody tr').first()).not.toHaveText(before ?? '');
   });
 
   test('back button steps back through pages', async ({ page }) => {

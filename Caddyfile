@@ -1,0 +1,7 @@
+# Prod reverse-proxy / TLS for the API origin. Caddy terminates Let's Encrypt TLS
+# (HTTP-01) for api.solmuapp.com and proxies to the web container. CloudFront's
+# /api/* behavior points at api.solmuapp.com. Canonical/DR copy of the host file.
+api.solmuapp.com {
+    encode gzip zstd
+    reverse_proxy web:8000
+}

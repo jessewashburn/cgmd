@@ -253,7 +253,7 @@ GET  /api/instrumentations/       # List instrumentations
 
 - **Development**: http://localhost:5173
 - **API (dev)**: http://localhost:8000
-- **Production**: https://www.solmuapp.com (S3 + CloudFront + Elastic Beanstalk — see `AWS_DEPLOYMENT.md`)
+- **Production**: https://www.solmuapp.com (S3 + CloudFront frontend; EC2 Docker Compose backend — web + db + caddy — see `../AWS_DEPLOYMENT.md`)
 
 ## Support
 

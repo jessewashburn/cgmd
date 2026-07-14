@@ -20,7 +20,7 @@ export default function Navbar() {
           <img src={solmuLogo} alt="Solmu" className="navbar-logo" />
           <div className="navbar-title">
             <div className="navbar-name">Solmu - Guitar Music Network</div>
-            <div className="navbar-tagline">Our repertoire, all in one place</div>
+            <div className="navbar-tagline">Our repertoire, connected.</div>
           </div>
         </Link>
 
@@ -42,7 +42,7 @@ export default function Navbar() {
               onClick={() => setMobileMenuOpen(false)}
             >
               Home
-            </Link>
+            </Link>11
           </li>
           <li>
             <Link 

@@ -69,7 +69,7 @@ This provides:
 ### Backend
 - Django 6.0
 - Django REST Framework
-- PostgreSQL database (Supabase)
+- PostgreSQL 17 (self-hosted in a container on the EC2 host in prod; local dev can use SQLite or a local Postgres)
 - Python 3.10+
 
 ## Getting Started
@@ -94,7 +94,7 @@ source venv/Scripts/activate     # Windows
 # source venv/bin/activate       # macOS/Linux
 pip install -r requirements.txt
 
-# Configure .env file with your PostgreSQL/Supabase credentials
+# Configure .env with your local DB credentials (or use the default SQLite dev DB)
 # DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, DB_PORT
 
 python manage.py migrate
@@ -218,7 +218,7 @@ npm run build
 # Output in frontend/dist/
 ```
 
-The site runs on AWS — frontend on **S3 + CloudFront** (private bucket via OAC), backend on **Elastic Beanstalk**. See [AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md) for the full runbook and one-command redeploy.
+The site runs entirely on AWS — frontend on **S3 + CloudFront** (private bucket via OAC), backend as a **Docker Compose stack on a single EC2 instance** (Django + gunicorn, PostgreSQL 17, and Caddy for TLS — all co-located; no Elastic Beanstalk, no RDS, no Supabase). See **[AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md)** for the full runbook, and the one-command deploy scripts in [`scripts/`](scripts/) (`deploy-backend.sh`, `deploy-frontend.sh`).
 
 ## Performance Optimizations
 

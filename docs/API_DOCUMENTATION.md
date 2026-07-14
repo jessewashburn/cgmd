@@ -432,11 +432,11 @@ GET /api/composers/?ordering=last_name,first_name
 
 CORS is configured to allow requests from:
 - Frontend development servers (localhost:3000, localhost:5173)
-- GitHub Pages (production)
+- Production site (`https://www.solmuapp.com`, served via S3 + CloudFront)
 
-Configure additional origins in `.env`:
+Configure additional origins via `CORS_ALLOWED_ORIGINS` in the host `.env`:
 ```
-CORS_ALLOWED_ORIGINS=http://localhost:3000,https://yourdomain.github.io
+CORS_ALLOWED_ORIGINS=http://localhost:5173,https://www.solmuapp.com
 ```
 
 ## Rate Limiting

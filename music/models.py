@@ -171,7 +171,7 @@ class Work(models.Model):
     # Work Info
     title = models.CharField(max_length=1000)
     title_normalized = models.CharField(max_length=1000, help_text="Lowercase, accents removed for search")
-    title_sort_key = models.CharField(max_length=1000, db_index=True, null=True, blank=True,
+    title_sort_key = models.CharField(max_length=1000, db_index=True, default='', blank=True,
                                      help_text="Normalized title for alphabetical sorting")
     subtitle = models.TextField(null=True, blank=True)
     opus_number = models.CharField(max_length=50, null=True, blank=True)
@@ -217,7 +217,7 @@ class Work(models.Model):
 
     class Meta:
         db_table = 'works'
-        ordering = ['title']
+        ordering = ['title_sort_key']
         indexes = [
             models.Index(fields=['composer'], name='idx_work_composer'),
             models.Index(fields=['title'], name='idx_work_title'),
@@ -237,10 +237,20 @@ class Work(models.Model):
         return f"{self.title} - {self.composer.full_name}"
 
     def save(self, *args, **kwargs):
-        # Auto-generate normalized title if not set
-        if not self.title_normalized:
-            import unicodedata
-            self.title_normalized = unicodedata.normalize('NFKD', self.title).encode('ascii', 'ignore').decode('utf-8').lower()
+        # Keep the derived title columns in lockstep with `title` on every save so an
+        # edit fixes them too. `title_normalized` powers search; `title_sort_key` powers
+        # the alphabetical browse order (default sort). Historically only
+        # `title_normalized` was maintained here, leaving `title_sort_key` NULL on any
+        # work created/edited outside the one-off `update_sort_keys` command — which
+        # broke the Works default ordering.
+        import unicodedata
+        from .utils import generate_title_sort_key
+
+        title = self.title or ''
+        self.title_normalized = (
+            unicodedata.normalize('NFKD', title).encode('ascii', 'ignore').decode('utf-8').lower()
+        )
+        self.title_sort_key = generate_title_sort_key(title)
         super().save(*args, **kwargs)
 
 
