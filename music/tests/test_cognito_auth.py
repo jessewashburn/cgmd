@@ -15,7 +15,8 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.test import APIRequestFactory
 
 from music.cognito_auth import CognitoJWTAuthentication
-from music.models import UserSuggestion
+from music.models import UserSuggestion, WorkLink
+from .factories import WorkFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -132,3 +133,60 @@ def test_non_admin_cannot_approve(api):
 def test_anonymous_cannot_approve(api):
     res, _ = _approve(api)
     assert res.status_code in (401, 403)
+
+
+# --- apply action: edit_work suggestions update fields + create links -------
+
+def _edit_work_suggestion(work, **suggested):
+    return UserSuggestion.objects.create(
+        suggestion_type='edit_work', title='edit', description='',
+        related_work=work, suggested_data=suggested,
+    )
+
+
+def test_apply_updates_fields_and_creates_links(api):
+    work = WorkFactory(title='Old Title', composition_year=None)
+    s = _edit_work_suggestion(
+        work,
+        title='New Title',
+        composition_year=2001,
+        links=[{'label': 'BCGS Commission', 'url': 'https://bcgs.org', 'link_type': 'commission'}],
+    )
+    api.credentials(HTTP_AUTHORIZATION=f'Bearer {mint(groups=["admins"])}')
+    res = api.post(f'/api/suggestions/{s.id}/apply/')
+
+    assert res.status_code == 200
+    assert res.data['links_added'] == 1
+    work.refresh_from_db()
+    assert work.title == 'New Title'
+    assert work.composition_year == 2001
+    assert work.links.filter(url='https://bcgs.org', link_type='commission').exists()
+    s.refresh_from_db()
+    assert s.status == 'merged'
+
+
+def test_apply_is_idempotent_on_links(api):
+    work = WorkFactory()
+    s = _edit_work_suggestion(work, links=[{'label': 'X', 'url': 'https://x.com'}])
+    api.credentials(HTTP_AUTHORIZATION=f'Bearer {mint(groups=["admins"])}')
+    api.post(f'/api/suggestions/{s.id}/apply/')
+    second = api.post(f'/api/suggestions/{s.id}/apply/')
+    assert second.data['links_added'] == 0
+    assert WorkLink.objects.filter(work=work, url='https://x.com').count() == 1
+
+
+def test_apply_rejects_new_work(api):
+    s = UserSuggestion.objects.create(
+        suggestion_type='new_work', title='n', description='', suggested_data={'links': []},
+    )
+    api.credentials(HTTP_AUTHORIZATION=f'Bearer {mint(groups=["admins"])}')
+    res = api.post(f'/api/suggestions/{s.id}/apply/')
+    assert res.status_code == 400
+
+
+def test_apply_requires_admin(api):
+    work = WorkFactory()
+    s = _edit_work_suggestion(work, links=[{'label': 'X', 'url': 'https://x.com'}])
+    api.credentials(HTTP_AUTHORIZATION=f'Bearer {mint(groups=["viewers"])}')
+    res = api.post(f'/api/suggestions/{s.id}/apply/')
+    assert res.status_code == 403

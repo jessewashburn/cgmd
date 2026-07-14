@@ -1,6 +1,6 @@
 # Solmu - Guitar Music Network
 
-Our repertoire, all in one place.
+Our repertoire, connected.
 
 A modern web application for browsing and exploring classical guitar music, composers, and works.
 
