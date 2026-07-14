@@ -153,6 +153,18 @@ before deploying.
 Build locally (Vite bakes `VITE_API_URL=https://www.solmuapp.com/api` from `.env.production`),
 sync to S3 with correct cache headers, invalidate only `index.html`.
 
+> **Required frontend env for admin login.** `frontend/.env.production` **must** also set the
+> Cognito identifiers (public, not secrets) or the build ships an admin login that renders
+> "Admin login isn't configured yet." Vite bakes them in at build time:
+> ```
+> VITE_COGNITO_USER_POOL_ID=us-east-1_dKVMYPC8c
+> VITE_COGNITO_APP_CLIENT_ID=23orpavq4u24ivt8ckrvhbushb
+> ```
+> (Pool `solmu-admin`, app client `solmu-admin-web`, group `admins`; the backend already
+> validates these tokens via `COGNITO_*` on the host `.env`.) For a one-off build without
+> editing the file, inject them as env vars — process env wins over `.env.production`:
+> `VITE_COGNITO_USER_POOL_ID=… VITE_COGNITO_APP_CLIENT_ID=… npm run build`.
+
 ```bash
 cd frontend && npm run build && cd ..
 
