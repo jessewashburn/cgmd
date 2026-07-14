@@ -144,6 +144,26 @@
   background: transparent;
 }
 
+/* Amplify's internal container/router default to a fixed modal width (~30rem)
+   that overflows our narrower card. Constrain everything to the card width. */
+.login-container [data-amplify-authenticator] {
+  --amplify-components-authenticator-router-max-width: 100%;
+  --amplify-components-authenticator-modal-width: 100%;
+  width: 100%;
+}
+.login-container [data-amplify-authenticator] [data-amplify-container],
+.login-container [data-amplify-authenticator] [data-amplify-router] {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.login-container [data-amplify-authenticator] [data-amplify-form] {
+  padding: 0;
+}
+.login-container [data-amplify-authenticator] * {
+  box-sizing: border-box;
+}
+
 @media (max-width: 480px) {
   .login-container {
     padding: 30px 20px;

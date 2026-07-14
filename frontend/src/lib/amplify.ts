@@ -15,6 +15,8 @@ if (cognitoConfigured) {
       Cognito: {
         userPoolId: userPoolId as string,
         userPoolClientId: userPoolClientId as string,
+        // The pool signs in with email — present an "Email" field, not "Username".
+        loginWith: { email: true },
       },
     },
   });
