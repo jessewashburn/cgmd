@@ -1,6 +1,6 @@
 .about-page {
   padding: 3rem 2rem;
-  max-width: 900px;
+  max-width: var(--max-width-prose);
   margin: 0 auto;
 }
 

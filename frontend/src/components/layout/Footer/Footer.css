@@ -7,7 +7,7 @@
 }
 
 .footer-content {
-  max-width: 1200px;
+  max-width: var(--max-width-content);
   margin: 0 auto;
   padding: 0 1.5rem;
   min-height: 60px;

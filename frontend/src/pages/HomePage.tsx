@@ -26,7 +26,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="home-page">
+    <div className="page page--wide home-page">
       <section className="highlighted-work-section">
         <h2 className="section-title">Today's Highlighted Work</h2>
         <p className="section-description">

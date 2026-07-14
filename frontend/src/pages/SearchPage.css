@@ -1,0 +1,12 @@
+/* SearchPage — presentation reuses shared primitives (.page, .card-grid,
+   .work-card, .detail-section). Only the results summary is page-specific. */
+
+.search-results-summary {
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+.search-back-link {
+  margin-top: var(--spacing-xl);
+  display: inline-block;
+}

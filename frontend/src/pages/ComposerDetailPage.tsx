@@ -54,7 +54,7 @@ export default function ComposerDetailPage() {
   ].filter(Boolean) as Array<{ label: string; value: string | number }>;
 
   return (
-    <div className="page-container-narrow">
+    <div className="page page--wide">
       <Link to="/composers" className="back-link">← Back to Composers</Link>
       
       <header className="detail-header">
@@ -80,7 +80,7 @@ export default function ComposerDetailPage() {
       <section className="detail-section">
         <h2>Works ({works.length})</h2>
         {works.length > 0 ? (
-          <div className="works-grid">
+          <div className="works-grid card-grid">
             {works.map((work) => (
               <Link
                 key={work.id}

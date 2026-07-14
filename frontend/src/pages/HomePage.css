@@ -1,8 +1,4 @@
-.home-page {
-  padding: var(--spacing-lg);
-  max-width: var(--max-width-wide);
-  margin: 0 auto;
-}
+/* Container comes from the shared `.page page--wide` primitive. */
 
 /* ============================================
    HERO SECTION
@@ -210,6 +206,8 @@
   margin-bottom: var(--spacing-xl);
 }
 
+/* auto-fit (not the shared .card-grid's auto-fill): with only two browse cards
+   we want them to stretch and fill the row, not sit at their min width. */
 .browse-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));

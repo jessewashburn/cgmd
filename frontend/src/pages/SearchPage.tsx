@@ -3,6 +3,9 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { workService, composerService } from '../lib';
 import { useDebounce } from '../hooks/useDebounce';
+import SearchBar from '../components/ui/SearchBar';
+import '../styles/shared/DetailPage.css';
+import './SearchPage.css';
 
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -42,72 +45,46 @@ export default function SearchPage() {
   const composers = data?.composers ?? [];
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-      <header style={{ marginBottom: '2rem' }}>
+    <div className="page page--content">
+      <header className="page-header">
         <h1>Search</h1>
-        <form onSubmit={(e) => e.preventDefault()} style={{ marginTop: '1rem' }}>
-          <input
-            type="search"
-            placeholder="Search for works, composers, titles..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            style={{
-              width: '100%',
-              maxWidth: '600px',
-              padding: '0.75rem',
-              fontSize: '1rem',
-              borderRadius: '4px',
-              border: '1px solid #ccc',
-            }}
-          />
-        </form>
       </header>
 
+      <SearchBar
+        value={query}
+        onChange={setQuery}
+        placeholder="Search for works, composers, titles..."
+      />
+
       {isError && (
-        <div style={{
-          padding: '1rem',
-          background: '#fee',
-          border: '1px solid #fcc',
-          borderRadius: '8px',
-          marginBottom: '1rem',
-          color: '#c00',
-        }}>
-          Failed to search. Please try again in a moment.
+        <div className="error-state">
+          <p>Failed to search. Please try again in a moment.</p>
         </div>
       )}
 
       {trimmed && isFetching && works.length === 0 && composers.length === 0 ? (
-        <p>Searching...</p>
+        <p className="loading-state">Searching...</p>
       ) : trimmed ? (
         <>
-          <p style={{ marginBottom: '1rem', color: '#666' }}>
+          <p className="search-results-summary">
             Found {composers.length} composers and {works.length} works
           </p>
 
           {composers.length > 0 && (
-            <section style={{ marginBottom: '2rem' }}>
-              <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>Composers</h2>
-              <div style={{ display: 'grid', gap: '1rem' }}>
+            <section className="detail-section">
+              <h2>Composers</h2>
+              <div className="card-grid">
                 {composers.map((composer) => (
                   <Link
                     key={composer.id}
                     to={`/composers/${composer.id}`}
-                    style={{ textDecoration: 'none', color: 'inherit' }}
+                    className="work-card"
                   >
-                    <div style={{
-                      padding: '1rem',
-                      background: '#e8f4f8',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                    }}>
-                      <h3 style={{ margin: '0 0 0.5rem 0' }}>{composer.full_name}</h3>
-                      <p style={{ margin: '0.25rem 0', color: '#666' }}>
-                        {composer.period} {composer.country && `• ${composer.country.name}`}
-                      </p>
-                      <p style={{ margin: '0.25rem 0', color: '#666', fontSize: '0.9rem' }}>
-                        {composer.work_count} works
-                      </p>
-                    </div>
+                    <h3>{composer.full_name}</h3>
+                    <p className="work-card-meta">
+                      {[composer.period, composer.country?.name].filter(Boolean).join(' • ') || '—'}
+                    </p>
+                    <p className="work-card-meta">{composer.work_count} works</p>
                   </Link>
                 ))}
               </div>
@@ -115,60 +92,38 @@ export default function SearchPage() {
           )}
 
           {works.length > 0 && (
-            <section>
-              <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>Works</h2>
-              <div style={{ display: 'grid', gap: '1rem' }}>
+            <section className="detail-section">
+              <h2>Works</h2>
+              <div className="card-grid">
                 {works.map((work) => (
                   <Link
                     key={work.id}
                     to={`/works/${work.id}`}
-                    style={{ textDecoration: 'none', color: 'inherit' }}
+                    state={{ from: 'works' }}
+                    className="work-card"
                   >
-                <div style={{
-                  padding: '1rem',
-                  background: '#f5f5f5',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                }}>
-                  <h3 style={{ margin: '0 0 0.5rem 0' }}>{work.title}</h3>
-                  {work.composer ? (
-                    <p style={{ margin: '0.25rem 0', color: '#666' }}>
-                      by{' '}
-                      <Link
-                        to={`/composers/${work.composer.id}`}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {work.composer.full_name}
-                      </Link>
+                    <h3>{work.title}</h3>
+                    <p className="work-card-meta">
+                      by {work.composer ? work.composer.full_name : 'Unknown Composer'}
                     </p>
-                  ) : (
-                    <p style={{ margin: '0.25rem 0', color: '#666' }}>
-                      by Unknown Composer
-                    </p>
-                  )}
-                  {work.instrumentation_detail && (
-                    <p style={{ margin: '0.25rem 0', fontSize: '0.9rem', color: '#888' }}>
-                      {work.instrumentation_detail}
-                    </p>
-                  )}
-                </div>
-              </Link>
-            ))}
+                    {work.instrumentation_detail && (
+                      <p className="work-card-meta">{work.instrumentation_detail}</p>
+                    )}
+                  </Link>
+                ))}
               </div>
             </section>
           )}
 
           {!isFetching && composers.length === 0 && works.length === 0 && (
-            <p>No results found</p>
+            <p className="empty-state">No results found</p>
           )}
         </>
       ) : (
-        <p>Enter a search query to find composers and works</p>
+        <p className="empty-state">Enter a search query to find composers and works</p>
       )}
 
-      <div style={{ marginTop: '2rem' }}>
-        <Link to="/">← Back to Home</Link>
-      </div>
+      <Link to="/" className="back-link search-back-link">← Back to Home</Link>
     </div>
   );
 }

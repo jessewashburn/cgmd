@@ -150,7 +150,7 @@ export default function AdminSuggestions() {
   if (loading) return <LoadingSpinner />;
 
   return (
-    <div className="admin-suggestions page-container">
+    <div className="admin-suggestions page page--wide">
       <PageHeader 
         tagline="ADMIN PORTAL"
         title="User Suggestions"

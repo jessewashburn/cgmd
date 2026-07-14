@@ -277,18 +277,6 @@
   width: 100px;
 }
 
-/* Sort Header (for DataTable) */
-.sort-header {
-  cursor: pointer;
-  user-select: none;
-  transition: all 0.3s ease;
-}
-
-.sort-header:hover {
-  color: var(--color-accent);
-  transform: scale(1.05);
-}
-
 /* Mobile Responsive Styles */
 @media (max-width: 768px) {
   .list-page {

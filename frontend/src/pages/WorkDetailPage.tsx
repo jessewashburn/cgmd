@@ -46,7 +46,7 @@ export default function WorkDetailPage() {
   ].filter(Boolean) as Array<{ label: string; value: string | number }>;
 
   return (
-    <div className="page-container-narrow">
+    <div className="page page--prose">
       {fromWorks ? (
         <Link to="/works" className="back-link">
           ← Back to Works

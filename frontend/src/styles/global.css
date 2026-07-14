@@ -33,9 +33,17 @@
   --border-radius: 8px;
   --border-radius-sm: 4px;
   
-  --max-width-narrow: 800px;
-  --max-width-wide: 1400px;
-  --max-width-content: 1200px;
+  /* Semantic width scale (intent-named). --max-width-narrow kept as a legacy
+     alias of --max-width-prose while call sites migrate. */
+  --max-width-auth: 440px;    /* login / auth card */
+  --max-width-prose: 800px;   /* readable text: About, Privacy, detail header/bio */
+  --max-width-form: 720px;    /* suggestion form */
+  --max-width-content: 1200px;/* single-focus pages */
+  --max-width-wide: 1400px;   /* tables, dashboards, card grids */
+  --max-width-narrow: var(--max-width-prose);
+
+  /* Min card width for auto-fill card grids (see .card-grid) */
+  --card-min: 280px;
   
   --font-size-xs: 0.9rem;
   --font-size-base: 1rem;
@@ -62,17 +70,29 @@
   color: var(--color-error);
 }
 
-/* Common page wrapper */
-.page-container {
-  padding: var(--spacing-lg);
-  max-width: var(--max-width-wide);
-  margin: 0 auto;
-}
+/* ---------------------------------------------------------------------------
+   Layout primitives (prefer these over per-page container blocks)
+   --------------------------------------------------------------------------- */
 
-.page-container-narrow {
-  padding: var(--spacing-lg);
-  max-width: var(--max-width-content);
+/* Page container: centered, padded, width-capped by a --page modifier. */
+.page {
+  width: 100%;
   margin: 0 auto;
+  padding: var(--spacing-lg);
+}
+.page--auth    { max-width: var(--max-width-auth); }
+.page--prose   { max-width: var(--max-width-prose); }
+.page--form    { max-width: var(--max-width-form); }
+.page--content { max-width: var(--max-width-content); }
+.page--wide    { max-width: var(--max-width-wide); }
+
+/* Responsive auto-fill card grid. Collapses to a single column on narrow
+   viewports automatically (min track >= phone content width). Override the
+   card width per use with `style={{ '--card-min': '320px' }}`. */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--card-min), 1fr));
+  gap: var(--spacing-md);
 }
 
 * {
@@ -100,24 +120,6 @@ a:hover {
 }
 
 /* Utility Classes */
-.container {
-  padding: var(--spacing-lg);
-  max-width: var(--max-width-wide);
-  margin: 0 auto;
-}
-
-.container-narrow {
-  padding: var(--spacing-lg);
-  max-width: var(--max-width-narrow);
-  margin: 0 auto;
-}
-
-.container-content {
-  padding: var(--spacing-lg);
-  max-width: var(--max-width-content);
-  margin: 0 auto;
-}
-
 .text-center {
   text-align: center;
 }
@@ -219,9 +221,7 @@ a:hover {
     --spacing-xl: 2rem;
   }
 
-  .container,
-  .container-narrow,
-  .container-content {
+  .page {
     padding: var(--spacing-md);
   }
 

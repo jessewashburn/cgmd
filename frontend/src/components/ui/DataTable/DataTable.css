@@ -39,6 +39,19 @@
   text-align: center;
 }
 
+/* Clickable sort header rendered by DataTable's renderHeader(). Lives here (not in
+   ListPage.css) since it belongs to the DataTable component. */
+.sort-header {
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.3s ease;
+}
+
+.sort-header:hover {
+  color: var(--color-accent);
+  transform: scale(1.05);
+}
+
 .data-table th.align-right {
   text-align: right;
 }

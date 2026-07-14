@@ -91,6 +91,8 @@
 
 .detail-biography {
   margin-top: var(--spacing-md);
+  /* Cap line length for readability even when the page runs full width. */
+  max-width: var(--max-width-prose);
   line-height: 1.8;
   color: var(--color-text-secondary);
   background: #f9f9f9;
@@ -118,9 +120,9 @@
   margin: 0;
 }
 
+/* Layout comes from the shared .card-grid utility (responsive auto-fill columns);
+   this only adds the section's top spacing. */
 .works-grid {
-  display: grid;
-  gap: var(--spacing-md);
   margin-top: var(--spacing-md);
 }
 
