@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../lib/api';
+import LinkListEditor, { DraftLink } from '../ui/LinkListEditor';
 import './SuggestionModal.css';
 
 interface SuggestionModalProps {
@@ -14,6 +15,30 @@ export default function SuggestionModal({ isOpen, onClose, itemType, itemData }:
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [loadingDetail, setLoadingDetail] = useState(itemType === 'work');
+
+  // The modal is opened from several places with different work shapes (some
+  // list rows lack links / full fields). Fetch the canonical work so the form —
+  // including its existing bespoke links — always pre-fills correctly.
+  useEffect(() => {
+    if (itemType !== 'work' || !itemData?.id) {
+      setLoadingDetail(false);
+      return;
+    }
+    let cancelled = false;
+    api.get(`/works/${itemData.id}/`)
+      .then((res) => {
+        if (cancelled) return;
+        const work = res.data;
+        const links: DraftLink[] = (work.links || [])
+          .filter((l: any) => l.id != null) // bespoke WorkLinks only, not legacy-column links
+          .map((l: any) => ({ label: l.label, url: l.url, link_type: l.link_type }));
+        setFormData({ ...work, links });
+      })
+      .catch(() => { /* keep the partial itemData as a fallback */ })
+      .finally(() => { if (!cancelled) setLoadingDetail(false); });
+    return () => { cancelled = true; };
+  }, [itemType, itemData?.id]);
 
   if (!isOpen) return null;
 
@@ -25,11 +50,18 @@ export default function SuggestionModal({ isOpen, onClose, itemType, itemData }:
     try {
       const suggestionType = itemType === 'composer' ? 'edit_composer' : 'edit_work';
 
+      const suggestedData = {
+        ...formData,
+        links: (formData.links || [])
+          .map((l: DraftLink) => ({ label: l.label.trim(), url: l.url.trim(), link_type: l.link_type || 'other' }))
+          .filter((l: DraftLink) => l.label && l.url),
+      };
+
       await api.post('/suggestions/', {
         suggestion_type: suggestionType,
         title: `Edit ${itemType}: ${itemData.full_name || itemData.title}`,
         description: comment || 'Suggested changes submitted via form',
-        suggested_data: formData,
+        suggested_data: suggestedData,
         related_composer: itemType === 'composer' ? itemData.id : null,
         related_work: itemType === 'work' ? itemData.id : null,
       });
@@ -132,6 +164,13 @@ export default function SuggestionModal({ isOpen, onClose, itemType, itemData }:
           />
         </div>
       </div>
+      <div className="form-group">
+        <label>Links</label>
+        <LinkListEditor
+          links={formData.links || []}
+          onChange={(links) => setFormData({ ...formData, links })}
+        />
+      </div>
     </>
   );
 
@@ -144,7 +183,9 @@ export default function SuggestionModal({ isOpen, onClose, itemType, itemData }:
         </div>
 
         <form onSubmit={handleSubmit} className="suggestion-form">
-          {itemType === 'composer' ? renderComposerFields() : renderWorkFields()}
+          {itemType === 'work' && loadingDetail
+            ? <p className="loading-detail">Loading work details…</p>
+            : itemType === 'composer' ? renderComposerFields() : renderWorkFields()}
 
           <div className="form-group">
             <label>Additional Comments (optional)</label>

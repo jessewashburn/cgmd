@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import api from '../../../lib/api';
+import LinkListEditor, { DraftLink } from '../LinkListEditor';
 import '../../features/SuggestionModal.css';
 
 interface SuggestNewWorkModalProps {
@@ -17,6 +18,7 @@ export default function SuggestNewWorkModal({ isOpen, onClose }: SuggestNewWorkM
     composition_year: '',
     instrumentation_detail: '',
     comment: '',
+    links: [] as DraftLink[],
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -35,6 +37,10 @@ export default function SuggestNewWorkModal({ isOpen, onClose }: SuggestNewWorkM
     setIsSubmitting(true);
     setSubmitStatus('idle');
 
+    const cleanLinks = formData.links
+      .map((l) => ({ label: l.label.trim(), url: l.url.trim(), link_type: l.link_type || 'other' }))
+      .filter((l) => l.label && l.url);
+
     try {
       await api.post('/suggestions/', {
         suggestion_type: 'new_work',
@@ -43,6 +49,7 @@ export default function SuggestNewWorkModal({ isOpen, onClose }: SuggestNewWorkM
         suggested_data: {
           ...formData,
           composition_year: formData.composition_year ? Number(formData.composition_year) : null,
+          links: cleanLinks,
         },
       });
 
@@ -59,6 +66,7 @@ export default function SuggestNewWorkModal({ isOpen, onClose }: SuggestNewWorkM
           composition_year: '',
           instrumentation_detail: '',
           comment: '',
+          links: [],
         });
       }, 2000);
     } catch (error) {
@@ -164,6 +172,14 @@ export default function SuggestNewWorkModal({ isOpen, onClose }: SuggestNewWorkM
                 />
               </div>
             </div>
+          </div>
+
+          <div className="form-section">
+            <h3>Links</h3>
+            <LinkListEditor
+              links={formData.links}
+              onChange={(links) => setFormData({ ...formData, links })}
+            />
           </div>
 
           <div className="form-group">

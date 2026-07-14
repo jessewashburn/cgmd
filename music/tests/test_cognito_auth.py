@@ -1,7 +1,9 @@
 """Cognito JWT authentication + admins-group authorization.
 
 Mocks the pool JWKS with a local RSA keypair so we can mint tokens and assert the
-authenticator/permission behavior end-to-end without hitting AWS.
+authenticator/permission behavior without hitting AWS. Token *validation* is tested
+against the authenticator directly; *authorization* (admins group) is tested through
+a protected endpoint.
 """
 import time
 
@@ -9,6 +11,8 @@ import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 from django.test import override_settings
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.test import APIRequestFactory
 
 from music.cognito_auth import CognitoJWTAuthentication
 from music.models import UserSuggestion
@@ -62,54 +66,43 @@ def mint(groups=('admins',), **overrides):
     return jwt.encode(claims, _PRIVATE_KEY, algorithm='RS256')
 
 
-def auth(client, token):
-    client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
-    return client
+def _authenticate(token):
+    request = APIRequestFactory().get('/', HTTP_AUTHORIZATION=f'Bearer {token}')
+    return CognitoJWTAuthentication().authenticate(request)
 
 
-# --- /api/auth/user/ reflects identity + admin status ---------------------
+# --- authenticator parses a valid token ------------------------------------
 
-def test_current_user_reports_admin(api):
-    res = auth(api, mint(groups=['admins'])).get('/api/auth/user/')
-    assert res.status_code == 200
-    assert res.data['is_admin'] is True
-    assert res.data['username'] == 'admin@example.com'
-
-
-def test_current_user_non_admin(api):
-    res = auth(api, mint(groups=['viewers'])).get('/api/auth/user/')
-    assert res.status_code == 200
-    assert res.data['is_admin'] is False
+def test_valid_token_yields_user_and_groups():
+    user, claims = _authenticate(mint(groups=['admins']))
+    assert user.username == 'admin@example.com'
+    assert user.groups == ['admins']
+    assert claims['sub'] == 'user-123'
 
 
-def test_current_user_anonymous(api):
-    assert api.get('/api/auth/user/').status_code == 401
+def test_no_bearer_is_anonymous():
+    request = APIRequestFactory().get('/')
+    assert CognitoJWTAuthentication().authenticate(request) is None
 
 
-# --- token validation failures → 401 --------------------------------------
+# --- token validation failures ---------------------------------------------
 
-def test_expired_token_rejected(api):
-    res = auth(api, mint(exp=int(time.time()) - 10)).get('/api/auth/user/')
-    assert res.status_code == 401
-
-
-def test_wrong_client_id_rejected(api):
-    res = auth(api, mint(client_id='someone-else')).get('/api/auth/user/')
-    assert res.status_code == 401
-
-
-def test_id_token_rejected(api):
-    # token_use must be "access"
-    res = auth(api, mint(token_use='id')).get('/api/auth/user/')
-    assert res.status_code == 401
+@pytest.mark.parametrize('token_kwargs', [
+    {'exp': int(time.time()) - 10},        # expired
+    {'client_id': 'someone-else'},         # wrong app client
+    {'token_use': 'id'},                   # must be an access token
+])
+def test_invalid_tokens_rejected(token_kwargs):
+    with pytest.raises(AuthenticationFailed):
+        _authenticate(mint(**token_kwargs))
 
 
-def test_garbage_token_rejected(api):
-    res = auth(api, 'not-a-jwt').get('/api/auth/user/')
-    assert res.status_code == 401
+def test_garbage_token_rejected():
+    with pytest.raises(AuthenticationFailed):
+        _authenticate('not-a-jwt')
 
 
-# --- admin-gated action requires the admins group -------------------------
+# --- admin-gated action requires the admins group --------------------------
 
 def _make_suggestion():
     return UserSuggestion.objects.create(
@@ -117,20 +110,25 @@ def _make_suggestion():
     )
 
 
-def test_admin_can_approve_suggestion(api):
+def _approve(api, token=None):
     s = _make_suggestion()
-    res = auth(api, mint(groups=['admins'])).post(f'/api/suggestions/{s.id}/approve/')
+    if token:
+        api.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+    return api.post(f'/api/suggestions/{s.id}/approve/'), s
+
+
+def test_admin_can_approve_suggestion(api):
+    res, s = _approve(api, mint(groups=['admins']))
     assert res.status_code == 200
     s.refresh_from_db()
     assert s.status == 'approved'
 
 
 def test_non_admin_cannot_approve(api):
-    s = _make_suggestion()
-    res = auth(api, mint(groups=['viewers'])).post(f'/api/suggestions/{s.id}/approve/')
+    res, _ = _approve(api, mint(groups=['viewers']))
     assert res.status_code == 403
 
 
 def test_anonymous_cannot_approve(api):
-    s = _make_suggestion()
-    assert api.post(f'/api/suggestions/{s.id}/approve/').status_code in (401, 403)
+    res, _ = _approve(api)
+    assert res.status_code in (401, 403)
