@@ -25,12 +25,28 @@ interface Suggestion {
 
 interface DraftLink { label?: string; url?: string; link_type?: string }
 
+interface ComposerMatch {
+  id: number;
+  full_name: string;
+  birth_year: number | null;
+  score?: number;
+  match_type?: string;
+}
+
+interface ApplyPrompt {
+  suggestionId: number;
+  suggestedName: string;
+  exactMatch: ComposerMatch | null;
+  looseMatches: ComposerMatch[];
+}
+
 export default function AdminSuggestions() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('pending');
   const [selectedSuggestion, setSelectedSuggestion] = useState<Suggestion | null>(null);
   const [adminNotes, setAdminNotes] = useState('');
+  const [applyPrompt, setApplyPrompt] = useState<ApplyPrompt | null>(null);
   const { logout } = useAuth();
 
   const fetchSuggestions = useCallback(async () => {
@@ -93,18 +109,43 @@ export default function AdminSuggestions() {
     }
   };
 
-  const handleApply = async (id: number) => {
+  const summarizeApply = (data: Record<string, any>) => {
+    const parts: string[] = [];
+    if (data.composer) parts.push(`composer ${data.composer.action}`);
+    if (data.work) parts.push(`work ${data.work.action}`);
+    if (Array.isArray(data.fields_updated) && data.fields_updated.length) {
+      parts.push(`${data.fields_updated.length} field(s) updated`);
+    }
+    if (typeof data.links_added === 'number') parts.push(`${data.links_added} link(s) added`);
+    return parts.join(', ') || 'applied';
+  };
+
+  // Apply a suggestion. For new work/composer the server replies 409 with match
+  // candidates when the composer is ambiguous; we surface those for confirmation.
+  const runApply = async (id: number, body?: Record<string, unknown>) => {
     try {
-      const res = await api.post(`/suggestions/${id}/apply/`);
-      const { fields_updated = [], links_added = 0 } = res.data || {};
-      alert(`Applied: ${fields_updated.length} field(s) updated, ${links_added} link(s) added.`);
+      const res = await api.post(`/suggestions/${id}/apply/`, body || {});
+      alert(`Applied: ${summarizeApply(res.data || {})}.`);
+      setApplyPrompt(null);
       fetchSuggestions();
       setSelectedSuggestion(null);
     } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { error?: string } } };
-      alert(axiosError.response?.data?.error || 'Failed to apply suggestion');
+      const err = error as { response?: { status?: number; data?: { error?: string; composer?: any } } };
+      if (err.response?.status === 409 && err.response.data?.composer) {
+        const c = err.response.data.composer;
+        setApplyPrompt({
+          suggestionId: id,
+          suggestedName: c.suggested?.name || '',
+          exactMatch: c.exact_match || null,
+          looseMatches: c.loose_matches || [],
+        });
+        return;
+      }
+      alert(err.response?.data?.error || 'Failed to apply suggestion');
     }
   };
+
+  const handleApply = (id: number) => runApply(id);
 
   if (loading) return <LoadingSpinner />;
 
@@ -298,16 +339,16 @@ export default function AdminSuggestions() {
                   </button>
                 )}
 
-                {selectedSuggestion.suggestion_type === 'edit_work' &&
-                  selectedSuggestion.related_work &&
+                {(['new_work', 'new_composer'].includes(selectedSuggestion.suggestion_type) ||
+                  (selectedSuggestion.suggestion_type === 'edit_work' && selectedSuggestion.related_work)) &&
                   selectedSuggestion.status !== 'merged' &&
                   selectedSuggestion.status !== 'rejected' && (
                   <button
                     className="btn-apply"
                     onClick={() => handleApply(selectedSuggestion.id)}
-                    title="Apply the proposed fields and links to the work"
+                    title="Incorporate this suggestion into the database"
                   >
-                    ⚡ Apply to work
+                    ⚡ Apply
                   </button>
                 )}
 
@@ -323,6 +364,61 @@ export default function AdminSuggestions() {
         </div>
       </div>
       
+      {applyPrompt && (
+        <div className="apply-overlay" onClick={() => setApplyPrompt(null)}>
+          <div className="apply-dialog" onClick={(e) => e.stopPropagation()}>
+            <h3>Resolve composer</h3>
+            <p className="apply-dialog-sub">
+              Suggested composer: <strong>{applyPrompt.suggestedName}</strong>. Reuse an existing
+              record if it's the same person, or create a new one.
+            </p>
+
+            {applyPrompt.exactMatch && (
+              <div className="match-row exact">
+                <div>
+                  <span className="match-badge match-badge-exact">Direct match</span>{' '}
+                  {applyPrompt.exactMatch.full_name}
+                  {applyPrompt.exactMatch.birth_year ? ` (b. ${applyPrompt.exactMatch.birth_year})` : ''}
+                </div>
+                <button onClick={() => runApply(applyPrompt.suggestionId, { composer_id: applyPrompt.exactMatch!.id })}>
+                  Use this
+                </button>
+              </div>
+            )}
+
+            {applyPrompt.looseMatches.map((m) => (
+              <div key={m.id} className="match-row">
+                <div>
+                  <span className="match-badge match-badge-loose">
+                    Possible {m.score != null ? `· ${Math.round(m.score * 100)}%` : ''}
+                  </span>{' '}
+                  {m.full_name}{m.birth_year ? ` (b. ${m.birth_year})` : ''}
+                </div>
+                <button onClick={() => runApply(applyPrompt.suggestionId, { composer_id: m.id })}>
+                  Use this
+                </button>
+              </div>
+            ))}
+
+            {!applyPrompt.exactMatch && applyPrompt.looseMatches.length === 0 && (
+              <p className="apply-dialog-sub">No existing composer matched.</p>
+            )}
+
+            <div className="apply-dialog-actions">
+              <button
+                className="btn-apply"
+                onClick={() => runApply(applyPrompt.suggestionId, { create_new_composer: true })}
+              >
+                Create new composer
+              </button>
+              <button className="btn-cancel" onClick={() => setApplyPrompt(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="logout-container">
         <button onClick={logout} className="logout-button">
           Logout

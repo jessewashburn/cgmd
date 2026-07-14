@@ -190,3 +190,25 @@ def test_apply_requires_admin(api):
     api.credentials(HTTP_AUTHORIZATION=f'Bearer {mint(groups=["viewers"])}')
     res = api.post(f'/api/suggestions/{s.id}/apply/')
     assert res.status_code == 403
+
+
+def test_apply_new_work_returns_409_then_reuses(api):
+    from music.tests.factories import ComposerFactory
+    existing = ComposerFactory(full_name='Barrios, Agustin', last_name='Barrios')
+    existing.name_normalized = 'barrios, agustin'
+    existing.save()
+    s = UserSuggestion.objects.create(
+        suggestion_type='new_work', title='n', description='',
+        suggested_data={'composer_name': 'Agustin Barrios', 'work_title': 'La Catedral', 'links': []},
+    )
+    api.credentials(HTTP_AUTHORIZATION=f'Bearer {mint(groups=["admins"])}')
+
+    # First call: ambiguous → 409 with the exact match surfaced.
+    res = api.post(f'/api/suggestions/{s.id}/apply/')
+    assert res.status_code == 409
+    assert res.data['composer']['exact_match']['id'] == existing.id
+
+    # Confirm reuse → applied.
+    res2 = api.post(f'/api/suggestions/{s.id}/apply/', {'composer_id': existing.id}, format='json')
+    assert res2.status_code == 200
+    assert res2.data['composer']['action'] == 'reused'

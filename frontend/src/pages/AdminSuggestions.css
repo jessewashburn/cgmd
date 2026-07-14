@@ -412,6 +412,104 @@
   padding-left: 18px;
 }
 
+.apply-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.apply-dialog {
+  background: var(--color-background);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 24px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.apply-dialog h3 {
+  margin: 0 0 8px;
+}
+
+.apply-dialog-sub {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  margin: 0 0 16px;
+}
+
+.match-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-sm);
+  margin-bottom: 8px;
+}
+
+.match-row.exact {
+  border-color: var(--color-header);
+  background: var(--color-background-alt);
+}
+
+.match-row button {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-sm);
+  background: var(--color-background);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.match-row button:hover {
+  border-color: var(--color-header);
+}
+
+.match-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-right: 4px;
+}
+
+.match-badge-exact {
+  background: var(--color-header);
+  color: #fff;
+}
+
+.match-badge-loose {
+  background: var(--color-background-alt);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.apply-dialog-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.apply-dialog-actions .btn-cancel {
+  background: var(--color-background-alt);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius-sm);
+  padding: 10px 16px;
+  cursor: pointer;
+}
+
 .btn-delete {
   background: var(--color-background-alt);
   color: var(--color-error);

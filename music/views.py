@@ -13,7 +13,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.postgres.search import TrigramSimilarity
 from .models import (
     Country, InstrumentationCategory, DataSource,
-    Composer, Work, WorkLink, Tag, UserSuggestion
+    Composer, Work, Tag, UserSuggestion
 )
 from .serializers import (
     CountrySerializer, InstrumentationCategorySerializer,
@@ -1036,62 +1036,29 @@ class UserSuggestionViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsCognitoAdmin])
     def apply(self, request, pk=None):
         """
-        Apply an edit-work suggestion to its linked Work: update the scalar fields
-        the edit form exposes and create the proposed WorkLink rows, then mark the
-        suggestion merged.
-
-        Scoped to edit_work (with a related_work) on purpose: auto-creating
-        composers/works from new_work suggestions risks duplicates and is left to
-        manual review.
+        Apply a suggestion to the database (see music.suggestion_apply):
+        - edit_work: write the edit-form fields + proposed links onto the work.
+        - new_work / new_composer: resolve the composer with a smart compare and,
+          unless the admin passes composer_id (reuse) or create_new_composer=true,
+          respond 409 with the match candidates so the UI can confirm — the
+          guardrail against duplicate composers.
         """
-        from django.utils import timezone
+        from .suggestion_apply import apply_suggestion, NeedsConfirmation, UnsupportedSuggestion
 
         suggestion = self.get_object()
-        if suggestion.suggestion_type != 'edit_work' or not suggestion.related_work_id:
-            return Response(
-                {'error': 'Apply is only supported for edit-work suggestions with a linked work.'},
-                status=status.HTTP_400_BAD_REQUEST,
+        try:
+            result = apply_suggestion(
+                suggestion,
+                composer_id=request.data.get('composer_id'),
+                create_new_composer=bool(request.data.get('create_new_composer')),
             )
-
-        data = suggestion.suggested_data or {}
-        work = suggestion.related_work
-        applied_fields = []
-
-        for field in ('title', 'instrumentation_detail'):
-            value = data.get(field)
-            if value not in (None, '') and getattr(work, field) != value:
-                setattr(work, field, value)
-                applied_fields.append(field)
-
-        if 'composition_year' in data:
-            raw = data.get('composition_year')
-            year = int(raw) if raw not in (None, '') else None
-            if work.composition_year != year:
-                work.composition_year = year
-                applied_fields.append('composition_year')
-
-        work.save()
-
-        links_added = 0
-        for link in (data.get('links') or []):
-            url = (link.get('url') or '').strip()
-            label = (link.get('label') or '').strip()
-            if not url or not label:
-                continue
-            _, created = WorkLink.objects.get_or_create(
-                work=work, url=url,
-                defaults={'label': label, 'link_type': link.get('link_type') or 'other'},
-            )
-            if created:
-                links_added += 1
-
-        suggestion.status = 'merged'
-        suggestion.reviewed_at = timezone.now()
-        suggestion.save()
+        except NeedsConfirmation as exc:
+            return Response(exc.payload, status=status.HTTP_409_CONFLICT)
+        except UnsupportedSuggestion as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({
             'status': 'applied',
-            'fields_updated': applied_fields,
-            'links_added': links_added,
+            **result,
             'suggestion': self.get_serializer(suggestion).data,
         })
