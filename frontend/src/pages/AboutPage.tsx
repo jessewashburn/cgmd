@@ -28,7 +28,7 @@ export default function AboutPage() {
         <p>
           I wanted to create a centralized repository without the bias of algorithms. A place where new 
           music sits right alongside the canon, where a composer with one work has the same visibility 
-          as Sor or Tárrega. This gives performers the freedom to discover and choose based on their 
+          as Sor or Tárrega. A place where performers have the freedom to discover and choose based on their 
           own tastes and needs, not what's trending or what an algorithm thinks they should hear.
         </p>
         <p>
