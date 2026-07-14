@@ -28,7 +28,7 @@ export default function LoginPage() {
       <div className="login-container">
         <div className="login-header">
           <h1>Admin Login</h1>
-          <p>Classical Guitar Music Database</p>
+          <p>Solmu - Guitar Music Network</p>
         </div>
 
         {cognitoConfigured ? (
