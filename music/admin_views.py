@@ -3,14 +3,14 @@ Admin-only views for maintenance operations.
 """
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from .models import Composer
+from .permissions import IsCognitoAdmin
 from .utils import is_living_composer
 
 
 @api_view(['POST'])
-@permission_classes([IsAdminUser])
+@permission_classes([IsCognitoAdmin])
 def update_all_is_living(request):
     """
     Update is_living field for all composers based on birth/death years.

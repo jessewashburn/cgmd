@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../lib/api';
 import { Composer } from '../types';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import ErrorMessage from '../components/ui/ErrorMessage';
 import './AdminComposers.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 export default function AdminComposers() {
   const [composers, setComposers] = useState<Composer[]>([]);
@@ -21,7 +20,7 @@ export default function AdminComposers() {
   const fetchComposers = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/composers/`);
+      const response = await api.get(`/composers/`);
       setComposers(response.data.results || response.data);
       setError(null);
     } catch (err: any) {
@@ -37,7 +36,7 @@ export default function AdminComposers() {
     }
 
     try {
-      await axios.delete(`${API_URL}/composers/${id}/`);
+      await api.delete(`/composers/${id}/`);
       setComposers(composers.filter(c => c.id !== id));
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Failed to delete composer');

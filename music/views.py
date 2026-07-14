@@ -21,7 +21,7 @@ from .serializers import (
     WorkListSerializer, WorkDetailSerializer, TagSerializer,
     WorkSearchSerializer, UserSuggestionSerializer, ComposerWorkSerializer
 )
-from .permissions import IsAdminOrReadOnly, IsHardcodedAdmin
+from .permissions import IsAdminOrReadOnly, IsCognitoAdmin
 
 
 class TrigramSearchFilter(filters.SearchFilter):
@@ -979,7 +979,7 @@ class UserSuggestionViewSet(viewsets.ModelViewSet):
         """
         if self.action == 'create':
             return [permissions.AllowAny()]
-        return [IsHardcodedAdmin()]
+        return [IsCognitoAdmin()]
     
     @method_decorator(csrf_exempt, name='dispatch')
     def create(self, request, *args, **kwargs):
@@ -993,7 +993,7 @@ class UserSuggestionViewSet(viewsets.ModelViewSet):
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
-    @action(detail=True, methods=['post'], permission_classes=[IsHardcodedAdmin])
+    @action(detail=True, methods=['post'], permission_classes=[IsCognitoAdmin])
     def approve(self, request, pk=None):
         """Approve a suggestion"""
         from django.utils import timezone
@@ -1006,7 +1006,7 @@ class UserSuggestionViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(suggestion)
         return Response(serializer.data)
     
-    @action(detail=True, methods=['post'], permission_classes=[IsHardcodedAdmin])
+    @action(detail=True, methods=['post'], permission_classes=[IsCognitoAdmin])
     def reject(self, request, pk=None):
         """Reject a suggestion"""
         from django.utils import timezone
@@ -1020,7 +1020,7 @@ class UserSuggestionViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(suggestion)
         return Response(serializer.data)
     
-    @action(detail=True, methods=['post'], permission_classes=[IsHardcodedAdmin])
+    @action(detail=True, methods=['post'], permission_classes=[IsCognitoAdmin])
     def mark_merged(self, request, pk=None):
         """Mark a suggestion as merged into the database"""
         from django.utils import timezone

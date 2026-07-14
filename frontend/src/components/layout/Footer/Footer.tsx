@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import SuggestNewWorkModal from '../../ui/SuggestNewWorkModal';
+import { useAuth } from '../../../contexts/AuthContext';
 import './Footer.css';
 
 export default function Footer() {
   const [showSuggestModal, setShowSuggestModal] = useState(false);
+  const { isAuthenticated } = useAuth();
 
   return (
     <>
@@ -19,6 +21,7 @@ export default function Footer() {
             </button>
             <Link to="/privacy" className="footer-link">Privacy Policy</Link>
             <Link to="/about" className="footer-link">About</Link>
+            <Link to={isAuthenticated ? '/admin' : '/admin/login'} className="footer-link">Admin</Link>
           </div>
           <div className="footer-copyright">
             © {new Date().getFullYear()} Solmu - Guitar Music Network

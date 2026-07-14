@@ -1,121 +1,82 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import axios from 'axios';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { fetchAuthSession, signOut as amplifySignOut } from 'aws-amplify/auth';
+import { Hub } from 'aws-amplify/utils';
+import { cognitoConfigured } from '../lib/amplify';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const ADMIN_GROUP = 'admins';
 
-interface User {
-  id: number;
+interface AuthUser {
   username: string;
-  email: string;
-  is_staff: boolean;
-  is_superuser: boolean;
-  first_name?: string;
-  last_name?: string;
+  groups: string[];
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
   isAuthenticated: boolean;
+  isAdmin: boolean;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  refresh: () => Promise<void>;
   logout: () => Promise<void>;
-  checkAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Configure axios defaults for session authentication
-axios.defaults.withCredentials = true;
-
-// Function to get CSRF cookie value
-const getCSRFToken = () => {
-  const name = 'csrftoken';
-  let cookieValue = null;
-  if (document.cookie && document.cookie !== '') {
-    const cookies = document.cookie.split(';');
-    for (let i = 0; i < cookies.length; i++) {
-      const cookie = cookies[i].trim();
-      if (cookie.substring(0, name.length + 1) === (name + '=')) {
-        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-        break;
-      }
-    }
-  }
-  return cookieValue;
-};
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const checkAuth = async () => {
+  const refresh = useCallback(async () => {
+    if (!cognitoConfigured) {
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
     try {
-      // First get CSRF token
-      await axios.get(`${API_URL}/auth/csrf/`);
-      
-      // Then check if user is authenticated
-      const response = await axios.get(`${API_URL}/auth/user/`);
-      setUser(response.data);
-    } catch (error) {
+      const { tokens } = await fetchAuthSession();
+      const accessToken = tokens?.accessToken;
+      if (!accessToken) {
+        setUser(null);
+        return;
+      }
+      const payload = accessToken.payload;
+      const groups = (payload['cognito:groups'] as string[] | undefined) ?? [];
+      const username = (payload['username'] as string | undefined) ?? '';
+      setUser({ username, groups });
+    } catch {
       setUser(null);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const login = async (username: string, password: string) => {
-    // Get CSRF token first
-    await axios.get(`${API_URL}/auth/csrf/`);
-    
-    // Get the CSRF token from cookie and set in header
-    const csrfToken = getCSRFToken();
-    
-    // Perform login
-    const response = await axios.post(`${API_URL}/auth/login/`, {
-      username,
-      password,
-    }, {
-      headers: {
-        'X-CSRFToken': csrfToken,
-      }
-    });
-    
-    setUser(response.data.user);
-  };
-
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
-      // Get the CSRF token from cookie and set in header
-      const csrfToken = getCSRFToken();
-      
-      await axios.post(`${API_URL}/auth/logout/`, {}, {
-        headers: {
-          'X-CSRFToken': csrfToken,
-        }
-      });
-    } catch (error) {
-      // Even if the server logout fails, we still want to clear local state
-      console.error('Logout request failed:', error);
+      if (cognitoConfigured) {
+        await amplifySignOut();
+      }
     } finally {
-      // Always clear the user state locally
       setUser(null);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    checkAuth();
-  }, []);
+    refresh();
+    if (!cognitoConfigured) return;
+    // Keep context in sync with Amplify sign-in / sign-out / token refresh.
+    const unsubscribe = Hub.listen('auth', ({ payload }) => {
+      if (['signedIn', 'signedOut', 'tokenRefresh'].includes(payload.event)) {
+        refresh();
+      }
+    });
+    return unsubscribe;
+  }, [refresh]);
+
+  const isAuthenticated = !!user;
+  const isAdmin = !!user && user.groups.includes(ADMIN_GROUP);
 
   return (
     <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        isLoading,
-        login,
-        logout,
-        checkAuth,
-      }}
+      value={{ user, isAuthenticated, isAdmin, isLoading, refresh, logout }}
     >
       {children}
     </AuthContext.Provider>

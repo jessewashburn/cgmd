@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import './lib/amplify' // configure Amplify/Cognito (side-effect) before anything renders
 import App from './App.tsx'
 import './index.css'
 import './styles/global.css'

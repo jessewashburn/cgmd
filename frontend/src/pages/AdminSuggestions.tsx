@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import api from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import PageHeader from '../components/layout/PageHeader';
 import './AdminSuggestions.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 interface Suggestion {
   id: number;
@@ -34,7 +33,7 @@ export default function AdminSuggestions() {
     try {
       setLoading(true);
       const params = filter !== 'all' ? { status: filter } : {};
-      const response = await axios.get(`${API_URL}/suggestions/`, { params });
+      const response = await api.get(`/suggestions/`, { params });
       setSuggestions(response.data.results || response.data);
     } catch (error: unknown) {
       console.error('Failed to load suggestions:', error);
@@ -49,7 +48,7 @@ export default function AdminSuggestions() {
 
   const handleApprove = async (id: number) => {
     try {
-      await axios.post(`${API_URL}/suggestions/${id}/approve/`);
+      await api.post(`/suggestions/${id}/approve/`);
       fetchSuggestions();
       setSelectedSuggestion(null);
     } catch (error) {
@@ -59,7 +58,7 @@ export default function AdminSuggestions() {
 
   const handleReject = async (id: number) => {
     try {
-      await axios.post(`${API_URL}/suggestions/${id}/reject/`, { admin_notes: adminNotes });
+      await api.post(`/suggestions/${id}/reject/`, { admin_notes: adminNotes });
       fetchSuggestions();
       setSelectedSuggestion(null);
       setAdminNotes('');
@@ -70,7 +69,7 @@ export default function AdminSuggestions() {
 
   const handleMarkMerged = async (id: number) => {
     try {
-      await axios.post(`${API_URL}/suggestions/${id}/mark_merged/`);
+      await api.post(`/suggestions/${id}/mark_merged/`);
       fetchSuggestions();
       setSelectedSuggestion(null);
     } catch (error) {
@@ -82,7 +81,7 @@ export default function AdminSuggestions() {
     if (!confirm('Are you sure you want to delete this suggestion?')) return;
     
     try {
-      await axios.delete(`${API_URL}/suggestions/${id}/`);
+      await api.delete(`/suggestions/${id}/`);
       fetchSuggestions();
       setSelectedSuggestion(null);
     } catch (error) {

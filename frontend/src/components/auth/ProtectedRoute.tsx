@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, requireAdmin = true }: ProtectedRouteProps) {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isAdmin, isLoading } = useAuth();
 
   if (isLoading) {
     return <LoadingSpinner />;
@@ -18,7 +18,7 @@ export default function ProtectedRoute({ children, requireAdmin = true }: Protec
     return <Navigate to="/admin/login" replace />;
   }
 
-  if (requireAdmin && !user?.is_staff) {
+  if (requireAdmin && !isAdmin) {
     return <Navigate to="/" replace />;
   }
 

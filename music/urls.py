@@ -8,7 +8,7 @@ from .views import (
     CountryViewSet, InstrumentationCategoryViewSet, DataSourceViewSet,
     ComposerViewSet, WorkViewSet, TagViewSet, StatsViewSet, UserSuggestionViewSet
 )
-from .auth_views import login_view, logout_view, get_csrf_token, current_user
+from .auth_views import current_user
 from .admin_views import update_all_is_living
 
 # Create router and register viewsets
@@ -23,12 +23,10 @@ router.register(r'stats', StatsViewSet, basename='stats')
 router.register(r'suggestions', UserSuggestionViewSet, basename='suggestion')
 
 urlpatterns = [
-    # Auth endpoints
-    path('auth/login/', login_view, name='login'),
-    path('auth/logout/', logout_view, name='logout'),
-    path('auth/csrf/', get_csrf_token, name='csrf'),
+    # Auth: login is handled by Cognito in the SPA; backend only echoes the
+    # current token's identity/admin status.
     path('auth/user/', current_user, name='current-user'),
-    
+
     # Admin maintenance endpoints
     path('admin/update-is-living/', update_all_is_living, name='update-is-living'),
     

@@ -108,11 +108,47 @@
   cursor: not-allowed;
 }
 
+.login-notice {
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  padding: 16px;
+  background: var(--color-background-alt);
+  border-radius: var(--border-radius-sm);
+}
+
+/* Theme the Amplify <Authenticator> to match the site (accent, font, radii). */
+.login-container [data-amplify-authenticator] {
+  --amplify-fonts-default-variable: var(--font-primary);
+  --amplify-fonts-default-static: var(--font-primary);
+  --amplify-colors-brand-primary-80: var(--color-accent);
+  --amplify-colors-brand-primary-90: var(--color-accent-hover);
+  --amplify-colors-brand-primary-100: var(--color-accent-hover);
+  --amplify-colors-font-interactive: var(--color-accent);
+  --amplify-radii-small: var(--border-radius-sm);
+  --amplify-radii-medium: var(--border-radius);
+  --amplify-components-button-primary-background-color: var(--color-accent);
+  --amplify-components-button-primary-hover-background-color: var(--color-accent-hover);
+  --amplify-components-button-primary-focus-background-color: var(--color-accent-hover);
+  --amplify-components-button-primary-active-background-color: var(--color-accent-hover);
+  --amplify-components-button-link-color: var(--color-accent);
+  --amplify-components-fieldcontrol-focus-border-color: var(--color-header);
+  --amplify-components-tabs-item-active-color: var(--color-accent);
+  --amplify-components-tabs-item-active-border-color: var(--color-accent);
+}
+
+/* We already provide the card chrome via .login-container. */
+.login-container [data-amplify-router] {
+  box-shadow: none;
+  border: none;
+  background: transparent;
+}
+
 @media (max-width: 480px) {
   .login-container {
     padding: 30px 20px;
   }
-  
+
   .login-header h1 {
     font-size: 24px;
   }

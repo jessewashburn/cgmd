@@ -164,13 +164,25 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'music.pagination.LargeResultsSetPagination',
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',
+        'music.cognito_auth.CognitoJWTAuthentication',
     ],
     # Public read, authenticated write by default
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
     ],
 }
+
+# AWS Cognito (admin auth). IDs are public identifiers, not secrets; still supplied
+# via env. NOTE: these must also be listed in docker-compose.prod.yml's web.environment
+# block — compose only forwards explicitly-declared vars into the container.
+COGNITO_REGION = os.getenv('COGNITO_REGION', 'us-east-1')
+COGNITO_USER_POOL_ID = os.getenv('COGNITO_USER_POOL_ID', '')
+COGNITO_APP_CLIENT_ID = os.getenv('COGNITO_APP_CLIENT_ID', '')
+COGNITO_ISSUER = (
+    f'https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{COGNITO_USER_POOL_ID}'
+    if COGNITO_USER_POOL_ID else ''
+)
+COGNITO_JWKS_URL = f'{COGNITO_ISSUER}/.well-known/jwks.json' if COGNITO_ISSUER else ''
 
 # drf-spectacular settings
 SPECTACULAR_SETTINGS = {
