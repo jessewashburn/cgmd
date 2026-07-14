@@ -194,27 +194,6 @@
   transform: scale(1.05);
 }
 
-.external-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-md);
-  margin-top: var(--spacing-md);
-}
-
-.external-link {
-  display: inline-block;
-  margin-right: var(--spacing-md);
-  color: var(--color-accent) !important;
-  text-decoration: none;
-  font-weight: 600;
-  transition: all 0.3s ease;
-}
-
-.external-link:hover {
-  text-decoration: underline;
-  color: var(--color-accent-hover) !important;
-}
-
 .back-link {
   margin-top: var(--spacing-xl);
   display: inline-block;

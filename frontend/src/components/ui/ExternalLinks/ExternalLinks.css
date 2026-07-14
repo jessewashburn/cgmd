@@ -1,0 +1,83 @@
+/* External-link CTAs rendered as button-styled links (outlined pills).
+   Single source of truth for both the homepage and detail-page usages —
+   replaces the old duplicated `.work-link(s)` / `.external-link(s)` rules. */
+
+.external-link-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+/* Outlined by default so a row of CTAs stays calm; fills with brand accent on
+   interaction, mirroring the .btn hover-lift so it feels native to the app.
+   Stays an <a> (link semantics) — these are navigations, not buttons. */
+.external-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 0.5rem 0.9rem;
+  min-height: 40px;
+  border: 1.5px solid var(--color-accent);
+  border-radius: var(--border-radius);
+  color: var(--color-accent);
+  background: transparent;
+  font-family: var(--font-primary);
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.external-link-btn:hover {
+  background: var(--color-accent);
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.external-link-btn:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+.external-link-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.external-link-btn__arrow {
+  transition: transform 0.2s ease;
+}
+
+.external-link-btn:hover .external-link-btn__arrow {
+  transform: translateX(3px);
+}
+
+/* Dark mode: root flips to color-scheme: dark (see index.css). Because we set
+   an explicit background/color the UA won't repaint the control, but brand red
+   (#950500) is too dark to read on a dark surface — lift border/text to the
+   brand gold for adequate contrast; hover keeps the filled-accent + white. */
+@media (prefers-color-scheme: dark) {
+  .external-link-btn {
+    border-color: var(--color-header);
+    color: var(--color-header);
+  }
+  .external-link-btn:focus-visible {
+    outline-color: var(--color-header);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .external-link-btn,
+  .external-link-btn__arrow {
+    transition: none;
+  }
+  .external-link-btn:hover {
+    transform: none;
+  }
+  .external-link-btn:hover .external-link-btn__arrow {
+    transform: none;
+  }
+}

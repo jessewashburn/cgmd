@@ -42,7 +42,7 @@ export default function Navbar() {
               onClick={() => setMobileMenuOpen(false)}
             >
               Home
-            </Link>11
+            </Link>
           </li>
           <li>
             <Link 
