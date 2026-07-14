@@ -370,6 +370,48 @@
   box-shadow: var(--shadow-md);
 }
 
+.btn-apply {
+  background: var(--color-header);
+  color: white;
+}
+
+.btn-apply:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  filter: brightness(1.05);
+}
+
+.suggested-data {
+  margin: 0;
+}
+
+.suggested-data-row {
+  display: flex;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.suggested-data-row dt {
+  min-width: 150px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: capitalize;
+}
+
+.suggested-data-row dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.suggested-links {
+  margin-top: 10px;
+}
+
+.suggested-links ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
 .btn-delete {
   background: var(--color-background-alt);
   color: var(--color-error);

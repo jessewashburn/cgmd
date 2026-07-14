@@ -19,7 +19,11 @@ interface Suggestion {
   admin_notes: string;
   created_at: string;
   reviewed_at: string | null;
+  related_work: number | null;
+  suggested_data: Record<string, unknown> | null;
 }
+
+interface DraftLink { label?: string; url?: string; link_type?: string }
 
 export default function AdminSuggestions() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -79,13 +83,26 @@ export default function AdminSuggestions() {
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this suggestion?')) return;
-    
+
     try {
       await api.delete(`/suggestions/${id}/`);
       fetchSuggestions();
       setSelectedSuggestion(null);
     } catch (error) {
       alert('Failed to delete suggestion');
+    }
+  };
+
+  const handleApply = async (id: number) => {
+    try {
+      const res = await api.post(`/suggestions/${id}/apply/`);
+      const { fields_updated = [], links_added = 0 } = res.data || {};
+      alert(`Applied: ${fields_updated.length} field(s) updated, ${links_added} link(s) added.`);
+      fetchSuggestions();
+      setSelectedSuggestion(null);
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { error?: string } } };
+      alert(axiosError.response?.data?.error || 'Failed to apply suggestion');
     }
   };
 
@@ -196,6 +213,41 @@ export default function AdminSuggestions() {
                 <p>{selectedSuggestion.description}</p>
               </div>
 
+              {selectedSuggestion.suggested_data && (() => {
+                const data = selectedSuggestion.suggested_data as Record<string, unknown>;
+                const scalars = Object.entries(data).filter(
+                  ([k, v]) => k !== 'links' && (v === null || typeof v !== 'object'),
+                );
+                const links = Array.isArray(data.links) ? (data.links as DraftLink[]) : [];
+                if (scalars.length === 0 && links.length === 0) return null;
+                return (
+                  <div className="detail-section">
+                    <h4>Proposed Data</h4>
+                    <dl className="suggested-data">
+                      {scalars.map(([k, v]) => (
+                        <div key={k} className="suggested-data-row">
+                          <dt>{k}</dt>
+                          <dd>{v === null || v === '' ? '—' : String(v)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                    {links.length > 0 && (
+                      <div className="suggested-links">
+                        <strong>Links</strong>
+                        <ul>
+                          {links.map((l, i) => (
+                            <li key={i}>
+                              {l.label ? `${l.label}: ` : ''}
+                              <a href={l.url} target="_blank" rel="noopener noreferrer">{l.url}</a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {selectedSuggestion.submitter_name && (
                 <div className="detail-section">
                   <h4>Submitted By</h4>
@@ -238,7 +290,7 @@ export default function AdminSuggestions() {
                 )}
 
                 {selectedSuggestion.status === 'approved' && (
-                  <button 
+                  <button
                     className="btn-merge"
                     onClick={() => handleMarkMerged(selectedSuggestion.id)}
                   >
@@ -246,7 +298,20 @@ export default function AdminSuggestions() {
                   </button>
                 )}
 
-                <button 
+                {selectedSuggestion.suggestion_type === 'edit_work' &&
+                  selectedSuggestion.related_work &&
+                  selectedSuggestion.status !== 'merged' &&
+                  selectedSuggestion.status !== 'rejected' && (
+                  <button
+                    className="btn-apply"
+                    onClick={() => handleApply(selectedSuggestion.id)}
+                    title="Apply the proposed fields and links to the work"
+                  >
+                    ⚡ Apply to work
+                  </button>
+                )}
+
+                <button
                   className="btn-delete"
                   onClick={() => handleDelete(selectedSuggestion.id)}
                 >
