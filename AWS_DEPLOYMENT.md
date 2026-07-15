@@ -147,11 +147,30 @@ before deploying.
 
 ## Frontend deploy (S3 + CloudFront)
 
-> **One command:** `scripts/deploy-frontend.sh` runs the build → sync → invalidate → verify
-> below. The manual steps follow for reference.
+> **One command:** `scripts/deploy-frontend.sh` runs the build → **Cognito bundle check** → sync
+> → invalidate → verify below. The manual steps follow for reference.
 
 Build locally (Vite bakes `VITE_API_URL=https://www.solmuapp.com/api` from `.env.production`),
 sync to S3 with correct cache headers, invalidate only `index.html`.
+
+> ⚠️ **Cognito config must be compiled into the bundle — never pass it only via the shell.**
+> (Bit us 2026-07-14: prod admin login showed *"Admin login isn't configured yet."*)
+>
+> The Cognito **user pool id / app client id are public** (they ship in the client bundle either
+> way; the pool is protected by SRP + the `admins` group). They are therefore **hardcoded as
+> defaults in [frontend/src/lib/amplify.ts](frontend/src/lib/amplify.ts)** so that *any* build —
+> `npm run build`, the deploy script, CI, an agent — bakes them in with **no env setup**.
+>
+> - **Do NOT** rely on exporting `VITE_COGNITO_*` in your shell. That's how we shipped a green
+>   build with a broken login: config that only exists in one shell is not config.
+> - `VITE_COGNITO_USER_POOL_ID` / `VITE_COGNITO_APP_CLIENT_ID` still **override** the defaults if
+>   you need to point a build at a different pool.
+> - Two things enforce this: `scripts/deploy-frontend.sh` **aborts** if the pool id isn't found in
+>   `frontend/dist/assets/`, and `frontend/src/lib/amplify.test.ts` fails if the source defaults
+>   are removed (it runs with no env set).
+> - **If you rotate/recreate the pool**, update the defaults in `amplify.ts` *and*
+>   `COGNITO_USER_POOL_ID` / `COGNITO_APP_CLIENT_ID` in [deploy/config.sh](deploy/config.sh)
+>   (used only for the deploy assertion).
 
 ```bash
 cd frontend && npm run build && cd ..

@@ -17,6 +17,13 @@ CLOUDFRONT_DIST_ID="E23JJN25WLB1B9"
 AWS_REGION="us-east-1"
 SITE_URL="https://www.solmuapp.com"
 
+# --- Cognito (admin auth) ---
+# Public identifiers (they ship in the client bundle). The canonical copy lives in
+# frontend/src/lib/amplify.ts so every build bakes them in; these are here so
+# deploy-frontend.sh can assert the built bundle actually contains them.
+COGNITO_USER_POOL_ID="us-east-1_dKVMYPC8c"
+COGNITO_APP_CLIENT_ID="23orpavq4u24ivt8ckrvhbushb"
+
 # App code shipped on a backend deploy (application only — never .env or host infra).
 BACKEND_SHIP_PATHS=(music cgmd_backend requirements.txt Dockerfile docker-entrypoint.sh manage.py)
 

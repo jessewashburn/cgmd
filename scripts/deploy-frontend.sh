@@ -15,6 +15,18 @@ require aws; require npm; require curl
 echo "▶ Building frontend…"
 ( cd frontend && npm run build )
 
+# Guard: admin login is Cognito, and its config must be compiled into the bundle.
+# A bundle without it still builds green but renders "Admin login isn't configured
+# yet" in prod (bit us 2026-07-14). Fail here rather than ship a broken login.
+echo "▶ Verifying Cognito config is baked into the bundle…"
+if ! grep -rq "$COGNITO_USER_POOL_ID" frontend/dist/assets/ 2>/dev/null; then
+  echo "✗ Cognito pool id ($COGNITO_USER_POOL_ID) is NOT in the built bundle." >&2
+  echo "  Admin login would show \"isn't configured yet\". Aborting deploy." >&2
+  echo "  Fix: frontend/src/lib/amplify.ts must define the pool/client defaults." >&2
+  exit 1
+fi
+echo "  ✓ Cognito config present"
+
 echo "▶ Syncing hashed assets (immutable, long cache)…"
 aws s3 sync frontend/dist/ "s3://$FRONTEND_BUCKET" --delete \
   --exclude index.html \
@@ -26,8 +38,14 @@ aws s3 cp frontend/dist/index.html "s3://$FRONTEND_BUCKET/index.html" \
   --content-type text/html --cache-control "no-cache" --region "$AWS_REGION"
 
 echo "▶ Invalidating CloudFront /index.html…"
+# Use --invalidation-batch (JSON) rather than --paths "/index.html": on Git Bash
+# (Windows) MSYS rewrites a leading-slash argument into a Windows path and
+# CloudFront rejects it ("InvalidArgument"). A JSON arg starts with '{', so it is
+# never path-converted, and this is identical on Linux/macOS. (Don't "fix" it with
+# MSYS_NO_PATHCONV/MSYS2_ARG_CONV_EXCL — those break the venv's `aws` shim.)
 inv="$(aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DIST_ID" \
-  --paths "/index.html" --query 'Invalidation.Id' --output text)"
+  --invalidation-batch "{\"Paths\":{\"Quantity\":1,\"Items\":[\"/index.html\"]},\"CallerReference\":\"deploy-$(date +%s)\"}" \
+  --query 'Invalidation.Id' --output text)"
 echo "  invalidation: $inv"
 
 echo "▶ Verifying bundle hash…"

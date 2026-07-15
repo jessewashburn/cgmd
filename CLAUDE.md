@@ -19,7 +19,17 @@ once rebuilt the whole topology by probing the host — see the `deployment-proc
 One command per tier, safety built in:
 
     scripts/deploy-backend.sh      # archive HEAD → rebuild web → migrate → health-gate (auto DB backup if migrations pending)
-    scripts/deploy-frontend.sh     # build → s3 sync (cache headers) → CloudFront invalidate → verify
+    scripts/deploy-frontend.sh     # build → Cognito bundle check → s3 sync (cache headers) → CloudFront invalidate → verify
+
+## Frontend build config — never ship config from your shell
+Admin auth is **AWS Cognito**. Its user pool / app client ids are **public** (they ship in the
+bundle regardless) and are **hardcoded as defaults in
+[frontend/src/lib/amplify.ts](frontend/src/lib/amplify.ts)** so *every* build bakes them in with
+no env setup. **Do not** move them to a shell/env-only variable: doing that shipped a green build
+whose admin login read *"Admin login isn't configured yet"* (2026-07-14). `VITE_COGNITO_*` may
+still override for another pool. Guards: `scripts/deploy-frontend.sh` aborts if the pool id isn't
+in `frontend/dist/assets/`, and `frontend/src/lib/amplify.test.ts` fails if the defaults vanish.
+Rotating the pool means updating `amplify.ts` **and** `deploy/config.sh`.
 
 ## Database migrations in prod — hazard
 `web`'s entrypoint runs `migrate` on **every start**, and `set -e` means a failed migration
