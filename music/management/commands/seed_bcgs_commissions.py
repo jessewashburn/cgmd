@@ -20,6 +20,7 @@ from django.db import transaction
 from music.models import (
     InstrumentationCategory, DataSource, Composer, Work, WorkLink,
 )
+from music.utils import parse_composer_name
 
 BCGS_URL = "https://www.bcgs.org/commissions/"
 BCGS_LINK_LABEL = "BCGS Commission"
@@ -27,23 +28,28 @@ BCGS_LINK_LABEL = "BCGS Commission"
 # Curated from https://www.bcgs.org/commissions/ (see SDD: bespoke-work-links).
 # Fields: composer, birth_year (None if unknown), birth_year_approx, title,
 #         instrumentation, composition_year
+#
+# Composers are written surname-first ("Last, First") to match how the catalogue
+# stores them, so each row lands on the exact-match path in
+# _get_or_create_composer() rather than the order-independent token fallback.
+# Compound surnames keep both parts before the comma ("Bouche Caro, Gabriel").
 COMMISSIONS = [
-    ("Christopher Gainey", 1981, True, "Chupacabra", "Guitar Duo", 2006),
-    ("Gabriela Lena Frank", 1972, False, "Inca Dances", "Guitar and String Quartet", 2008),
-    ("Matthew Cmiel", None, False, "I Wasted Time, and Now Doth Time Waste Me", "Solo Guitar", 2009),
-    ("Christopher William Pierce", 1974, False, "Three Pieces for Two Guitars", "Guitar Duo", 2010),
-    ("John Belkot", None, False, "Der duft des winters", "Solo Guitar", 2014),
-    ("Joshua Bornfield", None, False, "Murmurs", "Guitar Quartet", 2014),
-    ("Scott Lee", None, False, "To Build a House", "Solo Guitar", 2014),
-    ("Elizabeth Nonemaker", None, False, "Old Habits, Similar Patterns", "Guitar Duo", 2014),
-    ("Jordan Chase", None, False, "Nevermore", "Solo Guitar", 2018),
-    ("Gabriel Bouche Caro", None, False, "…of unnoticed charm", "Solo Guitar", 2018),
-    ("Edmund Scott Miller", None, False, "Storied", "Guitar Duo", 2018),
-    ("Samuel Winnie", None, False, "Esplanade", "Guitar Trio", 2018),
-    ("Ronn McFarlane", 1953, False, "Night Rose", "Lute and Guitar Duo", 2021),
-    ("Jordan Chase", None, False, "Between Earth and Sky", "Guitar Quartet", 2021),
-    ("Ronald Pearl", None, False, "Together Apart", "Guitar Quartet", 2021),
-    ("Antonio Sanz Escallón", None, False, "City-Fragments", "Three Guitars", 2025),
+    ("Gainey, Christopher", 1981, True, "Chupacabra", "Guitar Duo", 2006),
+    ("Frank, Gabriela Lena", 1972, False, "Inca Dances", "Guitar and String Quartet", 2008),
+    ("Cmiel, Matthew", None, False, "I Wasted Time, and Now Doth Time Waste Me", "Solo Guitar", 2009),
+    ("Pierce, Christopher William", 1974, False, "Three Pieces for Two Guitars", "Guitar Duo", 2010),
+    ("Belkot, John", None, False, "Der duft des winters", "Solo Guitar", 2014),
+    ("Bornfield, Joshua", None, False, "Murmurs", "Guitar Quartet", 2014),
+    ("Lee, Scott", None, False, "To Build a House", "Solo Guitar", 2014),
+    ("Nonemaker, Elizabeth", None, False, "Old Habits, Similar Patterns", "Guitar Duo", 2014),
+    ("Chase, Jordan", None, False, "Nevermore", "Solo Guitar", 2018),
+    ("Bouche Caro, Gabriel", None, False, "…of unnoticed charm", "Solo Guitar", 2018),
+    ("Miller, Edmund Scott", None, False, "Storied", "Guitar Duo", 2018),
+    ("Winnie, Samuel", None, False, "Esplanade", "Guitar Trio", 2018),
+    ("McFarlane, Ronn", 1953, False, "Night Rose", "Lute and Guitar Duo", 2021),
+    ("Chase, Jordan", None, False, "Between Earth and Sky", "Guitar Quartet", 2021),
+    ("Pearl, Ronald", None, False, "Together Apart", "Guitar Quartet", 2021),
+    ("Sanz Escallón, Antonio", None, False, "City-Fragments", "Three Guitars", 2025),
 ]
 
 
@@ -57,6 +63,17 @@ def name_tokens(text):
     and compound surnames like 'Bouche Caro')."""
     cleaned = normalize(text).replace(',', ' ')
     return frozenset(tok for tok in cleaned.split() if tok)
+
+
+def surname_key(text):
+    """The surname a name explicitly commits to, or None if it leaves it ambiguous.
+
+    'Bouche Caro, Gabriel' -> 'bouche caro'. A name with no comma ('Gabriel Bouche
+    Caro') returns None: we can't tell where the surname starts, which is exactly
+    what name_tokens() is for.
+    """
+    head, comma, _ = text.partition(',')
+    return ' '.join(normalize(head).split()) if comma else None
 
 
 def title_key(text):
@@ -129,27 +146,34 @@ class Command(BaseCommand):
         self._attach_link(work)
 
     def _get_or_create_composer(self, full_name, birth_year, birth_year_approx, source):
-        # Parse "First [Middle] Last" -> first_name / last_name
-        parts = full_name.rsplit(' ', 1)
-        if len(parts) == 2:
-            first_name, last_name = parts[0].strip(), parts[1].strip()
-        else:
-            first_name, last_name = '', full_name
+        # Splits "Last, First" on the comma and "First [Middle] Last" on the last
+        # space, so COMMISSIONS rows keep the surname intact even when it is
+        # compound ("Sanz Escallón, Antonio" -> first "Antonio", last "Sanz Escallón").
+        # full_name is stored verbatim; only the parts are derived.
+        first_name, last_name, _ = parse_composer_name(full_name)
 
-        # 1) Exact normalized full-name match takes priority. This pins e.g. "Jordan
-        #    Chase" to the natural-order record even when a surname-first homonym like
-        #    "Jordan, Chase" (a different person, "Chase Jordan") shares the token set.
+        # 1) Exact normalized full-name match takes priority.
         composer = Composer.objects.filter(name_normalized=normalize(full_name)).first()
         # 2) Otherwise, order-independent token-set match: the catalogue mixes "First
         #    Last", surname-first "Last, First", and compound surnames ("Bouche Caro,
         #    Gabriel"), all of which share the same set of name tokens.
         if composer is None:
             target = name_tokens(full_name)
+            target_surname = surname_key(full_name)
             anchor = max(target, key=len)  # scan on the most distinctive token
             for cand in Composer.objects.filter(name_normalized__icontains=anchor):
-                if name_tokens(cand.full_name) == target:
-                    composer = cand
-                    break
+                if name_tokens(cand.full_name) != target:
+                    continue
+                # A token set can't tell "Chase, Jordan" from "Jordan, Chase" — but
+                # those are two different people (the latter is Chase Jordan, b. 1998,
+                # from Sheerpluck), and each comma names its surname outright. So when
+                # both sides commit to a surname and disagree, believe them. Only bridge
+                # across word order when one side leaves the surname ambiguous.
+                cand_surname = surname_key(cand.full_name)
+                if target_surname and cand_surname and target_surname != cand_surname:
+                    continue
+                composer = cand
+                break
         if composer:
             self.stats['composers_reused'] += 1
             # Safe enrichment: fill a missing birth year only; never overwrite one.
