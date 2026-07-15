@@ -20,7 +20,7 @@ const DETAILED_CTA: Partial<Record<WorkLink['link_type'], string>> = {
 };
 
 // A single button-styled external link. Stays an <a> (link semantics); the
-// arrow is decorative (aria-hidden) and the accessible name notes the new tab.
+// accessible name notes that it opens a new tab.
 function ExternalLinkButton({ href, label }: { href: string; label: string }) {
   return (
     <a
@@ -30,10 +30,7 @@ function ExternalLinkButton({ href, label }: { href: string; label: string }) {
       className="external-link-btn"
       aria-label={`${label} (opens in new tab)`}
     >
-      <span className="external-link-btn__label">{label}</span>
-      <span className="external-link-btn__arrow" aria-hidden="true">
-        →
-      </span>
+      {label}
     </a>
   );
 }

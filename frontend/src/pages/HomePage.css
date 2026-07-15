@@ -208,24 +208,34 @@
   text-decoration: none;
   color: var(--color-text);
   box-shadow: var(--shadow-sm);
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
+/* Fills with brand accent on hover, mirroring .external-link-btn:hover so both
+   CTA styles feel like one system. The card sets its own background/color, so
+   the filled state reads the same in light and dark. */
 .browse-card:hover {
+  background: var(--color-accent);
   border-color: var(--color-accent);
+  color: #fff;
   box-shadow: var(--shadow-md);
-  transform: translateY(-4px);
+  transform: translateY(-2px);
+}
+
+.browse-card:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
 }
 
 .browse-card h3 {
   font-size: 1.8rem;
   color: var(--color-accent);
   margin-bottom: var(--spacing-sm);
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .browse-card:hover h3 {
-  text-decoration: underline;
+  color: #fff;
 }
 
 .browse-card p {

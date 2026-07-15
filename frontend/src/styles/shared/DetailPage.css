@@ -126,22 +126,34 @@
   margin-top: var(--spacing-md);
 }
 
+/* Column flex (not plain block) so a title-only card centers its content against
+   the row height .card-grid stretches it to, rather than pinning it to the top. */
 .work-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   padding: var(--spacing-md);
   background: white;
   border-radius: var(--border-radius);
   border: 2px solid var(--color-border);
+  text-align: center;
   text-decoration: none;
   color: inherit;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   cursor: pointer;
 }
 
+/* Fills with brand accent on hover, mirroring .external-link-btn:hover. */
 .work-card:hover {
-  background: #f9f9f9;
+  background: var(--color-accent);
   border-color: var(--color-accent);
   box-shadow: var(--shadow-md);
-  transform: translateY(-4px);
+  transform: translateY(-2px);
+}
+
+.work-card:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
 }
 
 .work-card h3 {
@@ -150,17 +162,29 @@
   font-size: 1.1rem;
   font-weight: 600;
   font-family: var(--font-primary);
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
+}
+
+/* Most works carry no catalog/instrumentation line; without this the heading's
+   trailing margin pushes a title-only card off-centre. */
+.work-card h3:last-child {
+  margin-bottom: 0;
 }
 
 .work-card:hover h3 {
-  color: var(--color-accent-hover);
+  color: #fff;
 }
 
 .work-card-meta {
   margin: 0.25rem 0;
   color: var(--color-text-secondary);
   font-size: 0.9rem;
+  transition: color 0.2s ease;
+}
+
+/* Keeps the meta subordinate to the title once the card is filled. */
+.work-card:hover .work-card-meta {
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .detail-tags {
