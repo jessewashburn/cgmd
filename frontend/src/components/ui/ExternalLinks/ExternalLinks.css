@@ -55,6 +55,21 @@
   transform: translateX(3px);
 }
 
+/* Mobile: a wrapping row breaks into a ragged 2-up/1-up, so stack instead.
+   Pills are capped rather than edge-to-edge, and centered as a column. */
+@media (max-width: 768px) {
+  .external-link-list {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .external-link-btn {
+    justify-content: center;
+    width: 100%;
+    max-width: 320px;
+  }
+}
+
 /* Dark mode: root flips to color-scheme: dark (see index.css). Because we set
    an explicit background/color the UA won't repaint the control, but brand red
    (#950500) is too dark to read on a dark surface — lift border/text to the

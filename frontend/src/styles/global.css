@@ -44,6 +44,18 @@
 
   /* Min card width for auto-fill card grids (see .card-grid) */
   --card-min: 280px;
+
+  /* Layer scale (intent-named). One rung per surface so no two tie — equal
+     z-index falls back to DOM order, which is how the filter dropdown and the
+     modals used to fight. Modals are portaled to <body>, so these values only
+     ever resolve against each other at the root. */
+  --z-sticky-cell: 1;    /* DataTable's sticky first column on mobile */
+  --z-overlay: 10;       /* FetchingOverlay, in-page */
+  --z-dropdown: 100;     /* filter dropdown menus; scroll under the navbar */
+  --z-navbar: 200;
+  --z-navbar-menu: 210;
+  --z-drawer: 900;       /* admin mobile detail takeover: over navbar, under modals */
+  --z-modal: 1000;       /* modal + apply-dialog backdrops */
   
   --font-size-xs: 0.9rem;
   --font-size-base: 1rem;

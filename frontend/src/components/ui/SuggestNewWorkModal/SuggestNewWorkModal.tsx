@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import api from '../../../lib/api';
 import LinkListEditor, { DraftLink } from '../LinkListEditor';
 import '../../features/SuggestionModal.css';
@@ -81,7 +82,9 @@ export default function SuggestNewWorkModal({ isOpen, onClose }: SuggestNewWorkM
     setFormData({ ...formData, [field]: value });
   };
 
-  return (
+  // Portaled to <body> for the same reason as SuggestionModal (which owns the
+  // shared .modal-overlay styles): never let an ancestor stacking context trap it.
+  return createPortal(
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
@@ -214,6 +217,7 @@ export default function SuggestNewWorkModal({ isOpen, onClose }: SuggestNewWorkM
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

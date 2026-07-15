@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import api from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
@@ -364,7 +365,7 @@ export default function AdminSuggestions() {
         </div>
       </div>
       
-      {applyPrompt && (
+      {applyPrompt && createPortal(
         <div className="apply-overlay" onClick={() => setApplyPrompt(null)}>
           <div className="apply-dialog" onClick={(e) => e.stopPropagation()}>
             <h3>Resolve composer</h3>
@@ -416,7 +417,8 @@ export default function AdminSuggestions() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <div className="logout-container">

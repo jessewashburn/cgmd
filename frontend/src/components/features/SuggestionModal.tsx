@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import api from '../../lib/api';
 import LinkListEditor, { DraftLink } from '../ui/LinkListEditor';
 import './SuggestionModal.css';
@@ -174,7 +175,11 @@ export default function SuggestionModal({ isOpen, onClose, itemType, itemData }:
     </>
   );
 
-  return (
+  // Portaled to <body>: this modal is rendered from inside table cells, and on
+  // mobile DataTable's sticky first column (position: sticky + z-index) forms a
+  // stacking context that would trap the overlay behind later rows. No z-index
+  // can escape that — only leaving the subtree can.
+  return createPortal(
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
@@ -219,6 +224,7 @@ export default function SuggestionModal({ isOpen, onClose, itemType, itemData }:
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
