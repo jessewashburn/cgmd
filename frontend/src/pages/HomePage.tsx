@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { workService } from '../lib';
+import { youtubeSearchQuery } from '../lib/composerName';
 import { Work } from '../types';
 import SuggestionButton from '../components/features/SuggestionButton';
 import ExternalLinks from '../components/ui/ExternalLinks';
@@ -126,7 +127,7 @@ export default function HomePage() {
 
             <ExternalLinks
               links={highlightedWork.links}
-              youtubeSearchQuery={[highlightedWork.title, highlightedWork.composer?.full_name].filter(Boolean).join(' ')}
+              youtubeSearchQuery={youtubeSearchQuery(highlightedWork.title, highlightedWork.composer?.full_name)}
               variant="default"
             />
           </div>

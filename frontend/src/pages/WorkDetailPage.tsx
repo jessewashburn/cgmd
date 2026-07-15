@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { workService } from '../lib';
+import { youtubeSearchQuery } from '../lib/composerName';
 import { Work } from '../types';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import ErrorMessage from '../components/ui/ErrorMessage';
@@ -101,7 +102,7 @@ export default function WorkDetailPage() {
         <h2>External Links</h2>
         <ExternalLinks
           links={work.links}
-          youtubeSearchQuery={[work.title, work.composer?.full_name].filter(Boolean).join(' ')}
+          youtubeSearchQuery={youtubeSearchQuery(work.title, work.composer?.full_name)}
           variant="detailed"
         />
       </section>
