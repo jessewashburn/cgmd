@@ -262,4 +262,4 @@ MIT License
 
 ## Contact
 
-Repository: https://github.com/yourusername/solmu
+Repository: https://github.com/jessewashburn/solmu
