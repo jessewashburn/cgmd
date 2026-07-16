@@ -189,31 +189,36 @@
   margin-bottom: var(--spacing-xl);
 }
 
-/* auto-fit (not the shared .card-grid's auto-fill): with only two browse cards
-   we want them to stretch and fill the row, not sit at their min width. */
 .browse-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: var(--spacing-lg);
-  max-width: 900px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--spacing-sm);
   margin: 0 auto;
 }
 
+/* Metrics mirror .external-link-btn (see ExternalLinks.css) rather than import
+   it: the same outlined pill, so the browse CTAs and the link pills below them
+   read as one control. Duplicated on purpose — the homepage shouldn't depend on
+   a component stylesheet happening to be loaded. Keep the two in sync. */
 .browse-card {
-  background: white;
-  border: 2px solid var(--color-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.9rem;
+  min-height: 40px;
+  border: 1.5px solid var(--color-accent);
   border-radius: var(--border-radius);
-  padding: var(--spacing-xl);
+  color: var(--color-accent);
+  background: transparent;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.2;
   text-align: center;
   text-decoration: none;
-  color: var(--color-text);
-  box-shadow: var(--shadow-sm);
   transition: all 0.2s ease;
 }
 
-/* Fills with brand accent on hover, mirroring .external-link-btn:hover so both
-   CTA styles feel like one system. The card sets its own background/color, so
-   the filled state reads the same in light and dark. */
 .browse-card:hover {
   background: var(--color-accent);
   border-color: var(--color-accent);
@@ -227,20 +232,38 @@
   box-shadow: var(--shadow-sm);
 }
 
+.browse-card:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* The label is an <h3> for page structure; inside the pill it takes the pill's
+   type, not heading type. */
 .browse-card h3 {
-  font-size: 1.8rem;
-  color: var(--color-accent);
-  margin-bottom: var(--spacing-sm);
-  transition: all 0.2s ease;
+  font: inherit;
+  color: inherit;
+  margin: 0;
 }
 
-.browse-card:hover h3 {
-  color: #fff;
+/* Brand red is too dark to read on a dark surface — lift to brand gold, as
+   .external-link-btn does. Hover keeps the filled-accent + white. */
+@media (prefers-color-scheme: dark) {
+  .browse-card {
+    border-color: var(--color-header);
+    color: var(--color-header);
+  }
+  .browse-card:focus-visible {
+    outline-color: var(--color-header);
+  }
 }
 
-.browse-card p {
-  color: var(--color-text-secondary);
-  font-size: 1rem;
+@media (prefers-reduced-motion: reduce) {
+  .browse-card {
+    transition: none;
+  }
+  .browse-card:hover {
+    transform: none;
+  }
 }
 
 /* ============================================
@@ -261,10 +284,6 @@
 
   .work-title {
     font-size: 1.8rem;
-  }
-
-  .browse-cards {
-    grid-template-columns: 1fr;
   }
 
   .highlighted-work-card {
