@@ -4,12 +4,17 @@ Seed a small, deterministic dataset for Playwright E2E tests.
 Safe by design: refuses to run against a database that already holds a large
 number of works (i.e. real data) unless --force is passed.
 """
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from music.models import (
     Country, InstrumentationCategory, DataSource, Composer, Work,
 )
+from music.utils import CANONICAL_INSTRUMENTATION_CATEGORIES
+
+# Instrumentation categories to seed. These must be canonical names — see the
+# guard in handle() for why.
+SEED_INSTRUMENTATIONS = ('Solo', 'Duo')
 
 COMPOSERS = [
     # full_name, last_name, first_name, country, birth_year, period
@@ -41,6 +46,21 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
+        # The /instrumentations/ list endpoint curates against
+        # CANONICAL_INSTRUMENTATION_CATEGORIES (name__in=...), so a category named
+        # anything else is served as an empty list — the filter dropdown then renders
+        # with no options and the only symptom is a Playwright click timing out on a
+        # missing option. Fail loudly here instead. (Seeding 'Guitar solo'/'Guitar duo'
+        # is exactly how that happened.) Checked before the reset below so a bad
+        # vocabulary never costs the existing data.
+        off_vocabulary = set(SEED_INSTRUMENTATIONS) - set(CANONICAL_INSTRUMENTATION_CATEGORIES)
+        if off_vocabulary:
+            raise CommandError(
+                f'Seed instrumentation names not in CANONICAL_INSTRUMENTATION_CATEGORIES: '
+                f'{sorted(off_vocabulary)}. The /instrumentations/ endpoint would serve an '
+                f'empty list and the filter dropdown would have no options.'
+            )
+
         if Work.objects.count() > 1000 and not options['force']:
             self.stderr.write(self.style.ERROR(
                 'Refusing to seed: database has >1000 works (looks like real data). '
@@ -55,12 +75,10 @@ class Command(BaseCommand):
         Country.objects.all().delete()
 
         source, _ = DataSource.objects.get_or_create(name='E2E Seed')
-        # Names must come from CANONICAL_INSTRUMENTATION_CATEGORIES: the
-        # /instrumentations/ list endpoint curates against that exact vocabulary
-        # (name__in=...), so a category named anything else is served as an empty
-        # list and the filter dropdown renders with no options.
-        solo = InstrumentationCategory.objects.create(name='Solo')
-        duo = InstrumentationCategory.objects.create(name='Duo')
+        solo, duo = (
+            InstrumentationCategory.objects.create(name=name)
+            for name in SEED_INSTRUMENTATIONS
+        )
 
         countries: dict[str, Country] = {}
         composers: dict[str, Composer] = {}
