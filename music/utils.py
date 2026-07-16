@@ -778,9 +778,46 @@ def split_realizations(detail: str):
     return (primary, alternates)
 
 
+# Terms that fix the work's *scale*, or disambiguate an instrument from a voice part.
+# When one of these appears only inside the "(or ...)", the primary text on its own is
+# not a complete description of the work and dropping the parenthetical loses real
+# information — see primary_instrumentation.
+_DISAMBIGUATING_SIGNALS = ('orchestra', 'ensemble', 'double bass', 'contrabass')
+
+
+def _parenthetical_carries_lost_signal(detail: str, primary: str) -> bool:
+    match = _ALTERNATE_RE.search(detail.lower())
+    if not match:
+        return False
+    inside = match.group(0)
+    lowered = primary.lower()
+    return any(s in inside and s not in lowered for s in _DISAMBIGUATING_SIGNALS)
+
+
 def primary_instrumentation(detail: str):
-    """The category for how the work is *notated* — alternates excluded."""
-    primary, _ = split_realizations(detail)
+    """The category for how the work is *notated* — alternates excluded.
+
+    Usually that means reading the primary realization alone. The exception, measured
+    against the catalogue at 27 works: the parenthetical sometimes carries a signal the
+    primary text lacks, and stripping it actively mis-files the work.
+
+        "guitar, strings (or orchestra)"
+            -> "(or orchestra)" is what reveals that "strings" means a string
+               *orchestra*; the primary alone reads as a bare Duo.
+        "Chamber Music: electric bass (or double bass), vibraphone"
+            -> "double bass" is the only thing stopping the bare "bass" from being
+               read as a *voice part*; the primary alone reads as Guitar and Voice.
+
+    In that case fall back to reading the whole string. This is deliberately a
+    fallback, not a fix: telling "substitutes for one instrument" from "substitutes for
+    the whole ensemble" needs to understand the sentence, and these 27 are ~50/50 either
+    way. Preferring the long-standing answer over a coin flip is the conservative call,
+    and — the actual point — it makes the derivation *stable*, so editing one of these
+    works doesn't silently move it.
+    """
+    primary, alternates = split_realizations(detail)
+    if alternates and _parenthetical_carries_lost_signal(detail, primary):
+        return canonical_instrumentation(detail)
     return canonical_instrumentation(primary)
 
 

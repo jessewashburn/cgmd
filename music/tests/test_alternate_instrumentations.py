@@ -106,6 +106,29 @@ def test_work_without_alternates_has_none():
     assert alternate_instrumentation_names('') == []
 
 
+# --- when the parenthetical can't be dropped --------------------------------
+
+def test_orchestra_only_in_the_parenthetical_is_not_dropped():
+    """"(or orchestra)" is what reveals that "strings" means a string *orchestra*.
+    Reading the primary alone demotes a concerto to a Duo."""
+    assert primary_instrumentation('guitar, strings (or orchestra)') == 'Guitar and Orchestra'
+
+
+def test_double_bass_in_the_parenthetical_keeps_bass_an_instrument():
+    """The bare "bass" in the primary reads as a voice part without it — which turned
+    a vibraphone duo into a vocal work."""
+    detail = 'Chamber Music: electric bass (or double bass), vibraphone'
+    assert primary_instrumentation(detail) != 'Guitar and Voice'
+    assert primary_instrumentation(detail) == 'Duo'
+
+
+def test_the_fallback_does_not_leak_into_ordinary_alternates():
+    """The 1,806 works whose parenthetical carries no such signal must still be read
+    primary-only — this fallback is the exception, not the rule."""
+    assert primary_instrumentation('guitar, violin (or flute)') == 'Guitar and Violin'
+    assert primary_instrumentation('Guitar and Tape (or 5 Guitars)') == 'Guitar with Electronics'
+
+
 # --- the driving work --------------------------------------------------------
 
 def test_in_realms_of_passing_dreams():
