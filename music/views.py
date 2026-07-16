@@ -2,18 +2,20 @@
 API views for the Classical Guitar Music Database.
 """
 
+from collections import Counter
+
 from rest_framework import viewsets, filters, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Q, Count, Value, F
+from django.db.models import Q, Count, Value, F, Exists, OuterRef
 from django.db.models.functions import Length, Replace, Lower
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.postgres.search import TrigramSimilarity
 from .models import (
     Country, InstrumentationCategory, DataSource,
-    Composer, Work, Tag, UserSuggestion
+    Composer, ComposerEra, Work, Tag, UserSuggestion
 )
 from .serializers import (
     CountrySerializer, InstrumentationCategorySerializer,
@@ -243,69 +245,30 @@ class InstrumentationCategoryViewSet(viewsets.ReadOnlyModelViewSet):
         if cached_result is not None:
             return Response(cached_result)
         
-        # Return curated, ordered categories
-        from .utils import get_instrumentation_variations
-        
-        # Define display order
-        ordered_categories = [
-            'Solo',
-            'Duo', 
-            'Trio',
-            'Quartet',
-            'Quintet',
-            'Sextet',
-            'Septet',
-            'Octet',
-            'Guitar and Orchestra',
-            'Guitar Orchestra',
-            'Guitar and Voice',
-            'Guitar and Flute',
-            'Guitar and Violin',
-            'Guitar and Viola',
-            'Guitar and Cello',
-            'Guitar and Piano',
-            'Guitar and Strings',
-            'Guitar and Clarinet',
-            'Guitar and Saxophone',
-            'Guitar and Harp',
-            'Guitar and Percussion',
-            'Guitar and Marimba',
-            'Guitar and Mandolin',
-            'Guitar and Trumpet',
-            'Guitar and Oboe',
-            'Guitar and Recorder',
-            'Guitar and Gamelan',
-            'Electric Guitar',
-            'Bass Guitar',
-            '12-String Guitar',
-            'Chamber Music',
-            'Guitar with Electronics',
-            'Ensemble',
-            'Mixed Ensemble',
+        # The canonical buckets, in display order, limited to those with public works.
+        # Each name is looked up exactly: this used to resolve a category's id by
+        # OR'ing `name__icontains` over its variation list and taking .first(), which
+        # reported whichever row matched a shared substring first — "Guitar and Voice"
+        # came back carrying Bass Guitar's id, and names no category has ever held
+        # ("Mixed Ensemble", "12-String Guitar") were listed as if they existed.
+        from django.db.models import Count
+        from .utils import CANONICAL_INSTRUMENTATION_CATEGORIES
+
+        categories = {
+            row['name']: row
+            for row in InstrumentationCategory.objects
+            .filter(name__in=CANONICAL_INSTRUMENTATION_CATEGORIES)
+            .annotate(work_count=Count('work', filter=Q(work__is_public=True)))
+            .filter(work_count__gt=0)
+            .values('id', 'name', 'sort_order')
+        }
+        results = [
+            {'id': categories[name]['id'], 'name': name,
+             'sort_order': categories[name]['sort_order']}
+            for name in CANONICAL_INSTRUMENTATION_CATEGORIES
+            if name in categories
         ]
-        
-        # Get variations to check which categories actually exist in database
-        instrumentation_variations = get_instrumentation_variations()
-        
-        # Build result with only categories that have works
-        results = []
-        for category in ordered_categories:
-            if category in instrumentation_variations:
-                # Check if any variation exists in database
-                variations = instrumentation_variations[category]
-                query = Q()
-                for variation in variations:
-                    query |= Q(name__icontains=variation)  # Changed from iexact to icontains
-                
-                if InstrumentationCategory.objects.filter(query).exists():
-                    # Find the first matching DB entry to get the ID
-                    db_entry = InstrumentationCategory.objects.filter(query).first()
-                    results.append({
-                        'id': db_entry.id,
-                        'name': category,
-                        'sort_order': db_entry.sort_order if hasattr(db_entry, 'sort_order') else 0
-                    })
-        
+
         # Cache for 1 hour
         cache.set(cache_key, results, 3600)
         return Response(results)
@@ -337,7 +300,11 @@ class ComposerViewSet(viewsets.ModelViewSet):
     by_period: Filter composers by period
     by_country: Filter composers by country
     """
-    queryset = Composer.objects.select_related('country', 'data_source').annotate(
+    # prefetch_related('eras'): both composer serializers render era labels, which
+    # would otherwise cost one query per row on a 50-row page.
+    queryset = Composer.objects.select_related('country', 'data_source').prefetch_related(
+        'eras'
+    ).annotate(
         work_count=Count('works', filter=Q(works__is_public=True))
     )
     permission_classes = [IsAdminOrReadOnly]
@@ -356,44 +323,52 @@ class ComposerViewSet(viewsets.ModelViewSet):
     filterset_fields = ['period', 'country', 'is_living', 'is_verified']
     
     def get_queryset(self):
-        queryset = super().get_queryset()
-        
-        # Filter by instrumentation (composers who have works with this instrumentation)
-        # Handles variations like "solo" matching "Solo Guitar", "Guitar Solo", etc.
+        return self._apply_filters(super().get_queryset())
+
+    def _apply_filters(self, queryset, include_eras=True):
+        """The hand-rolled ?instrumentation / ?birth_year_* / ?country_name / ?eras
+        filters (the range and name filters django-filter's filterset_fields can't
+        express).
+
+        `include_eras=False` is for the era_facets action, which must count each era
+        against every *other* filter but not against the era selection itself.
+        """
+        # Filter by instrumentation (composers who have works with this instrumentation).
+        # Resolves to a single canonical category, as on /works — see WorkViewSet.
         instrumentation = self.request.query_params.get('instrumentation')
         if instrumentation:
-            from .utils import get_instrumentation_variations
-            
-            # Map common instrumentation names to their variations
-            search_terms = [instrumentation]
-            instrumentation_variations = get_instrumentation_variations()
-            
-            # Add variations if available
-            if instrumentation in instrumentation_variations:
-                search_terms.extend(instrumentation_variations[instrumentation])
-            
-            # Build query with all variations
-            query = Q()
-            for term in search_terms:
-                query |= Q(instrumentation_category__name__icontains=term)
-            
+            from .utils import resolve_instrumentation_filter
+
+            category_name = resolve_instrumentation_filter(instrumentation)
+            if not category_name:
+                return queryset.none()
+
             # Use exists subquery to avoid duplicates and distinct() issues
-            from django.db.models import Exists, OuterRef
+            from .models import WorkInstrumentation
+
+            # Primary or alternate, matching /works — a composer with a work merely
+            # *playable* this way still belongs in the result.
             matching_works = Work.objects.filter(
+                Q(instrumentation_category__name=category_name)
+                | Q(Exists(WorkInstrumentation.objects.filter(
+                    work=OuterRef('pk'), category__name=category_name))),
                 composer=OuterRef('pk'),
-                is_public=True
-            ).filter(query)
+                is_public=True,
+            )
             queryset = queryset.filter(Exists(matching_works))
-        
+
+        if include_eras:
+            queryset = self._apply_era_filter(queryset)
+
         # Filter by birth year range
         birth_year_min = self.request.query_params.get('birth_year_min')
         birth_year_max = self.request.query_params.get('birth_year_max')
-        
+
         if birth_year_min:
             queryset = queryset.filter(birth_year__gte=birth_year_min)
         if birth_year_max:
             queryset = queryset.filter(birth_year__lte=birth_year_max)
-        
+
         # Filter by country name - matches both primary country AND country_description
         # Handles variations like USA/America/American and country demonyms
         country_name = self.request.query_params.get('country_name')
@@ -598,12 +573,83 @@ class ComposerViewSet(viewsets.ModelViewSet):
         # Ordering (default + search-relevance handling) is owned by
         # NullsLastOrderingFilter, so no manual order_by here.
         return queryset
-    
+
+    def _apply_era_filter(self, queryset):
+        """?eras=romantic,modern — composers tagged with ANY of the given eras.
+
+        OR within the param, AND with every other filter: the standard facet
+        contract, and the encompassing reading (Romantic + Modern = either, not both).
+        """
+        from .eras import parse_era_filter
+
+        raw = self.request.query_params.get('eras')
+        if not raw:
+            return queryset
+
+        slugs = parse_era_filter(raw)
+        if not slugs:
+            # Param present but no slug survived parsing. Per the rule in
+            # resolve_instrumentation_filter — a junk filter returns nothing rather
+            # than everything — this is an empty result, not an absent filter.
+            return queryset.none()
+
+        from django.db.models import Exists, OuterRef
+        matching_eras = ComposerEra.objects.filter(
+            composer=OuterRef('pk'), era__in=slugs
+        )
+        return queryset.filter(Exists(matching_eras))
+
     def get_serializer_class(self):
         if self.action == 'retrieve':
             return ComposerDetailSerializer
         return ComposerListSerializer
-    
+
+    @action(detail=False, methods=['get'])
+    def era_facets(self, request):
+        """Composer count per era under the currently-applied *other* filters.
+
+        Lets the UI render "Romantic (784)" / "Baroque (0)" on the chips, so a
+        conflict between the era chips and the birth-year slider — which are two
+        views of one underlying axis, since era tags are derived from birth years —
+        is visible before the click instead of an empty table after it.
+
+        The era filter is deliberately excluded from its own counts: were it applied,
+        selecting Romantic would drive every other chip to (0) and the facet would
+        destroy itself.
+        """
+        from .eras import era_windows, implied_birth_range
+
+        composers = self.filter_queryset(
+            self._apply_filters(Composer.objects.all(), include_eras=False)
+        )
+        counts = dict(
+            ComposerEra.objects
+            .filter(composer_id__in=composers.values('pk'))
+            .values_list('era')
+            # order_by() clears any ordering inherited from the composer queryset;
+            # otherwise Django folds the ordering field into the GROUP BY and the
+            # counts come back per-composer instead of per-era.
+            .order_by()
+            .annotate(count=Count('composer_id', distinct=True))
+        )
+
+        facets = []
+        for slug, label, start, end in era_windows():
+            # implied_birth_* is served rather than derived client-side so the
+            # creative-age/lifespan constants live in exactly one place; the UI needs
+            # them to offer "widen birth years to match Baroque".
+            birth_min, birth_max = implied_birth_range(slug)
+            facets.append({
+                'slug': slug,
+                'label': label,
+                'start_year': start,
+                'end_year': end,
+                'implied_birth_min': birth_min,
+                'implied_birth_max': birth_max,
+                'count': counts.get(slug, 0),
+            })
+        return Response(facets)
+
     @action(detail=False, methods=['get'])
     def by_period(self, request):
         """Get composers grouped by period"""
@@ -709,34 +755,59 @@ class WorkViewSet(viewsets.ModelViewSet):
         # Ordering (default title_sort_key + search-relevance handling) is owned by
         # NullsLastOrderingFilter, so no manual order_by here.
 
-        # Filter by instrumentation (using instrumentation name)
-        # Handles variations like "solo" matching "Solo Guitar", "Guitar Solo", etc.
+        # Filter by instrumentation. The term is resolved to exactly one canonical
+        # category and matched on that. This previously OR'd `name__icontains` over a
+        # list of loose variations, which matched *other* categories by substring —
+        # Duo's 'guitar and' variation pulled in every "Guitar and X" work (23.5k rows
+        # against Duo's real 4.6k).
         instrumentation = self.request.query_params.get('instrumentation')
         if instrumentation:
-            from .utils import get_instrumentation_variations
-            
-            # Map common instrumentation names to their variations
-            search_terms = [instrumentation]
-            instrumentation_variations = get_instrumentation_variations()
-            
-            # Add variations if available
-            if instrumentation in instrumentation_variations:
-                search_terms.extend(instrumentation_variations[instrumentation])
-            
-            # Build query with all variations
-            query = Q()
-            for term in search_terms:
-                query |= Q(instrumentation_category__name__icontains=term)
-            
-            queryset = queryset.filter(query)
-        
+            from .models import WorkInstrumentation
+            from .utils import resolve_instrumentation_filter
+
+            category_name = resolve_instrumentation_filter(instrumentation)
+            if not category_name:
+                queryset = queryset.none()
+            else:
+                # Match the primary instrumentation *or* an alternate realization: a
+                # work written for guitar and tape but playable by 5 guitars belongs in
+                # both buckets, and someone filtering Quintet wants it.
+                #
+                # EXISTS rather than a join + .distinct(), following the same call in
+                # ComposerViewSet ("avoid duplicates and distinct() issues"). It matters
+                # more here: `ordering_fields` includes instrumentation_category__name,
+                # and an ORDER BY across a multi-valued join duplicates rows and inflates
+                # the paginated count. A correlated subquery adds nothing to the outer
+                # query, so the sort stays honest.
+                queryset = queryset.filter(
+                    Q(instrumentation_category__name=category_name)
+                    | Q(Exists(WorkInstrumentation.objects.filter(
+                        work=OuterRef('pk'), category__name=category_name)))
+                )
+
         # Filter by composer country
         composer_country = self.request.query_params.get('composer_country')
         if composer_country:
             queryset = queryset.filter(
                 composer__country__name=composer_country
             )
-        
+
+        # Filter by the composer's era(s) — ?composer_eras=romantic,modern.
+        # Same OR-within/AND-across contract as /composers/?eras=; named for the
+        # relation it crosses, matching composer_country / composer_birth_year_*.
+        composer_eras = self.request.query_params.get('composer_eras')
+        if composer_eras:
+            from .eras import parse_era_filter
+
+            slugs = parse_era_filter(composer_eras)
+            if not slugs:
+                return queryset.none()
+
+            matching_eras = ComposerEra.objects.filter(
+                composer=OuterRef('composer_id'), era__in=slugs
+            )
+            queryset = queryset.filter(Exists(matching_eras))
+
         # Filter by composition year range
         year_min = self.request.query_params.get('composition_year_min')
         year_max = self.request.query_params.get('composition_year_max')
@@ -966,13 +1037,35 @@ class StatsViewSet(viewsets.ViewSet):
         )
     
     def _works_by_instrumentation(self):
-        """Count works by instrumentation category"""
-        return dict(
+        """Count works by instrumentation category, primary *and* alternate.
+
+        The count has to follow the filter: ?instrumentation=Quintet returns works
+        merely playable as a quintet, so a Quintet count that ignored alternates would
+        understate its own result set.
+
+        Consequence, and it is intended: these counts no longer sum to total_works. A
+        work written for guitar and tape but playable by 5 guitars genuinely occupies
+        two buckets and is counted in both. Don't "fix" that by dropping the union.
+        """
+        from .models import WorkInstrumentation
+
+        counts = Counter(dict(
             Work.objects.filter(is_public=True)
             .values('instrumentation_category__name')
             .annotate(count=Count('id'))
             .values_list('instrumentation_category__name', 'count')
-        )
+        ))
+        counts.update(dict(
+            WorkInstrumentation.objects.filter(work__is_public=True)
+            # Exclude the degenerate case where an alternate duplicates the primary;
+            # the backfill already refuses to write those, but a manual/suggested row
+            # could, and double-counting one work in one bucket is just wrong.
+            .exclude(category=F('work__instrumentation_category'))
+            .values('category__name')
+            .annotate(count=Count('work', distinct=True))
+            .values_list('category__name', 'count')
+        ))
+        return dict(counts)
 
 
 class UserSuggestionViewSet(viewsets.ModelViewSet):

@@ -6,7 +6,8 @@
   margin-bottom: var(--spacing-md);
 }
 
+/* Spacing only — display/appearance come from the canonical .back-link in
+   global.css (an `display: inline-block` here would beat its inline-flex). */
 .search-back-link {
   margin-top: var(--spacing-xl);
-  display: inline-block;
 }

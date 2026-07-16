@@ -28,6 +28,21 @@ export default function HomePage() {
 
   return (
     <div className="page page--wide home-page">
+      <section className="browse-section">
+        <h2 className="section-title">Explore the Database</h2>
+        <p className="section-description">
+          Our database features tens of thousands of guitar composers and works, spanning centuries of music from around the world.
+        </p>
+        <div className="browse-cards">
+          <Link to="/composers" className="browse-card">
+            <h3>Browse Composers</h3>
+          </Link>
+          <Link to="/works" className="browse-card">
+            <h3>Browse Works</h3>
+          </Link>
+        </div>
+      </section>
+
       <section className="highlighted-work-section">
         <h2 className="section-title">Today's Highlighted Work</h2>
         <p className="section-description">
@@ -136,21 +151,6 @@ export default function HomePage() {
             <p>Could not load today's highlighted work</p>
           </div>
         )}
-      </section>
-
-      <section className="browse-section">
-        <h2 className="section-title">Explore the Database</h2>
-        <p className="section-description">
-          Our database features tens of thousands of guitar composers and works, spanning centuries of music from around the world.
-        </p>
-        <div className="browse-cards">
-          <Link to="/composers" className="browse-card">
-            <h3>Browse Composers</h3>
-          </Link>
-          <Link to="/works" className="browse-card">
-            <h3>Browse Works</h3>
-          </Link>
-        </div>
       </section>
     </div>
   );

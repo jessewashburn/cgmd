@@ -189,6 +189,57 @@ a:hover {
   color: var(--color-background);
 }
 
+/* Back-navigation link — canonical appearance for every "← Back to X" link
+   (detail pages, search, admin). Lives here rather than in a page stylesheet
+   because three pages render `.back-link` and CSS is global once a route chunk
+   loads; duplicating it meant whichever sheet loaded last silently won. Pages
+   keep only their own spacing.
+
+   The chevron is drawn with borders instead of a text glyph so it inherits
+   currentColor, scales with font-size, and renders identically across fonts. */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  color: var(--color-text-secondary);
+  font-family: var(--font-primary);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.back-link::before {
+  content: '';
+  width: 0.4em;
+  height: 0.4em;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  /* rotate() must come last: transforms apply right-to-left, so the translate
+     below resolves in the parent's axes and the chevron slides straight left
+     rather than diagonally along its own rotated axis. */
+  transform: rotate(45deg);
+  transition: transform 0.2s ease;
+}
+
+.back-link:hover {
+  color: var(--color-accent);
+}
+
+/* Only the chevron moves — the label stays put. */
+.back-link:hover::before {
+  transform: translateX(-3px) rotate(45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .back-link,
+  .back-link::before {
+    transition: none;
+  }
+  .back-link:hover::before {
+    transform: rotate(45deg);
+  }
+}
+
 /* Page Header */
 .page-header {
   text-align: center;

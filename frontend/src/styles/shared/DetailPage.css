@@ -218,20 +218,9 @@
   transform: scale(1.05);
 }
 
+/* Appearance is the canonical .back-link in global.css; this is only spacing. */
 .back-link {
   margin-top: var(--spacing-xl);
-  display: inline-block;
-  color: var(--color-accent);
-  text-decoration: none;
-  font-weight: 600;
-  font-family: var(--font-primary);
-  transition: all 0.3s ease;
-}
-
-.back-link:hover {
-  color: var(--color-accent-hover);
-  text-decoration: underline;
-  transform: translateX(-5px);
 }
 
 .loading-state,

@@ -7,6 +7,7 @@ const noFilters: TableFilterState = {
   instrumentation: '',
   country: '',
   yearRange: [DEFAULT_YEAR_MIN, DEFAULT_YEAR_MAX],
+  eras: [],
 };
 
 describe('buildWorkFilterParams', () => {
@@ -19,6 +20,7 @@ describe('buildWorkFilterParams', () => {
       instrumentation: 'Guitar solo',
       country: 'Spain',
       yearRange: [1800, 1900],
+      eras: [],
     });
     expect(params).toEqual({
       instrumentation: 'Guitar solo',
@@ -33,6 +35,12 @@ describe('buildWorkFilterParams', () => {
       instrumentation: 'Duo',
     });
   });
+
+  it('sends eras as CSV under composer_eras', () => {
+    expect(buildWorkFilterParams({ ...noFilters, eras: ['romantic', 'modern'] })).toEqual({
+      composer_eras: 'romantic,modern',
+    });
+  });
 });
 
 describe('buildComposerFilterParams', () => {
@@ -45,12 +53,33 @@ describe('buildComposerFilterParams', () => {
       instrumentation: 'Guitar solo',
       country: 'Spain',
       yearRange: [1700, 1850],
+      eras: [],
     });
     expect(params).toEqual({
       instrumentation: 'Guitar solo',
       country_name: 'Spain',
       birth_year_min: 1700,
       birth_year_max: 1850,
+    });
+  });
+
+  it('sends eras as CSV, not a repeated param', () => {
+    expect(buildComposerFilterParams({ ...noFilters, eras: ['romantic', 'modern'] })).toEqual({
+      eras: 'romantic,modern',
+    });
+  });
+
+  it('omits eras when none are selected', () => {
+    expect(buildComposerFilterParams({ ...noFilters, eras: [] })).toEqual({});
+  });
+
+  it('combines eras with the birth-year range (they AND on the backend)', () => {
+    expect(
+      buildComposerFilterParams({ ...noFilters, eras: ['baroque'], yearRange: [1900, 2000] }),
+    ).toEqual({
+      eras: 'baroque',
+      birth_year_min: 1900,
+      birth_year_max: 2000,
     });
   });
 });

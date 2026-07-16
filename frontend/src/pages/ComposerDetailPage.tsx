@@ -55,7 +55,7 @@ export default function ComposerDetailPage() {
 
   return (
     <div className="page page--wide">
-      <Link to="/composers" className="back-link">← Back to Composers</Link>
+      <Link to="/composers" className="back-link">Back to Composers</Link>
       
       <header className="detail-header">
         <div className="detail-title-row">

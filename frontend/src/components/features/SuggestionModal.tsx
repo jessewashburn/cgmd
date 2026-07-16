@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../lib/api';
 import LinkListEditor, { DraftLink } from '../ui/LinkListEditor';
+import InstrumentationChips from '../ui/InstrumentationChips';
+import { useInstrumentations } from '../../hooks/useInstrumentations';
 import './SuggestionModal.css';
 
 interface SuggestionModalProps {
@@ -17,6 +19,7 @@ export default function SuggestionModal({ isOpen, onClose, itemType, itemData }:
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [loadingDetail, setLoadingDetail] = useState(itemType === 'work');
+  const instrumentations = useInstrumentations();
 
   // The modal is opened from several places with different work shapes (some
   // list rows lack links / full fields). Fetch the canonical work so the form —
@@ -34,7 +37,10 @@ export default function SuggestionModal({ isOpen, onClose, itemType, itemData }:
         const links: DraftLink[] = (work.links || [])
           .filter((l: any) => l.id != null) // bespoke WorkLinks only, not legacy-column links
           .map((l: any) => ({ label: l.label, url: l.url, link_type: l.link_type }));
-        setFormData({ ...work, links });
+        // Names, not ids — the API takes names back (ids differ per environment).
+        const alternate_instrumentations: string[] =
+          (work.alternate_instrumentations || []).map((a: any) => a.name);
+        setFormData({ ...work, links, alternate_instrumentations });
       })
       .catch(() => { /* keep the partial itemData as a fallback */ })
       .finally(() => { if (!cancelled) setLoadingDetail(false); });
@@ -164,6 +170,17 @@ export default function SuggestionModal({ isOpen, onClose, itemType, itemData }:
             max={2100}
           />
         </div>
+      </div>
+      <div className="form-group">
+        <label>Also playable as</label>
+        <InstrumentationChips
+          selected={formData.alternate_instrumentations || []}
+          onChange={(alternate_instrumentations) =>
+            setFormData({ ...formData, alternate_instrumentations })
+          }
+          options={instrumentations}
+          primary={formData.instrumentation_category?.name}
+        />
       </div>
       <div className="form-group">
         <label>Links</label>

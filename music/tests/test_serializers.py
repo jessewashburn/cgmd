@@ -9,7 +9,8 @@ pytestmark = pytest.mark.django_db
 
 def test_composer_list_serializer_shape(api):
     spain = CountryFactory(name='Spain')
-    composer = ComposerFactory(full_name='Shape Composer', last_name='Shape', country=spain)
+    composer = ComposerFactory(full_name='Shape Composer', last_name='Shape', country=spain,
+                               birth_year=1885, death_year=1944)
     WorkFactory(composer=composer, is_public=True)
 
     res = api.get('/api/composers/', {'search': 'Shape'})
@@ -17,10 +18,30 @@ def test_composer_list_serializer_shape(api):
 
     assert set(row.keys()) == {
         'id', 'full_name', 'birth_year', 'death_year',
-        'is_living', 'country_name', 'period', 'work_count',
+        'is_living', 'country_name', 'period', 'work_count', 'eras',
     }
     assert row['country_name'] == 'Spain'
     assert row['work_count'] == 1  # annotated count of public works
+    # Flat display strings, chronologically ordered (stored rows have no order).
+    assert row['eras'] == ['Romantic', 'Modern']
+
+
+def test_composer_eras_are_ordered_chronologically(api):
+    """Rows are written from a set, so ordering has to be imposed on the way out."""
+    ComposerFactory(full_name='Long Lived', last_name='LongLived',
+                    birth_year=1728, death_year=1803)
+
+    res = api.get('/api/composers/', {'search': 'Long Lived'})
+    row = next(c for c in res.data['results'] if c['full_name'] == 'Long Lived')
+    assert row['eras'] == ['Baroque', 'Classical', 'Romantic']
+
+
+def test_composer_undated_has_empty_eras(api):
+    ComposerFactory(full_name='No Dates', last_name='NoDates', birth_year=None)
+
+    res = api.get('/api/composers/', {'search': 'No Dates'})
+    row = next(c for c in res.data['results'] if c['full_name'] == 'No Dates')
+    assert row['eras'] == []
 
 
 def test_work_list_serializer_shape(api):

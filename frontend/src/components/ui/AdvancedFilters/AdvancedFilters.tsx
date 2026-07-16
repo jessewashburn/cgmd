@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { EraFacet } from '../../../hooks/useEraFacets';
 import '../../../styles/shared/ListPage.css';
 
 interface AdvancedFiltersProps {
@@ -12,6 +13,10 @@ interface AdvancedFiltersProps {
   onCountryChange: (value: string) => void;
   countries: string[];
   onClearFilters: () => void;
+  /** Era chips. Omit `eras` to hide the row entirely (shared component). */
+  eras?: EraFacet[];
+  selectedEras?: string[];
+  onEraToggle?: (slug: string) => void;
 }
 
 export default function AdvancedFilters({
@@ -25,6 +30,9 @@ export default function AdvancedFilters({
   onCountryChange,
   countries,
   onClearFilters,
+  eras,
+  selectedEras = [],
+  onEraToggle,
 }: AdvancedFiltersProps) {
   const [showFilters, setShowFilters] = useState(false);
   const [showInstrumentationDropdown, setShowInstrumentationDropdown] = useState(false);
@@ -62,6 +70,36 @@ export default function AdvancedFilters({
       {/* Advanced Filters Panel */}
       {showFilters && (
         <div className="advanced-filters-panel">
+          {/* Era chips — multi-select: picking two eras means either, not both.
+              Counts reflect the other active filters, so a chip reading (0) is a
+              dead end the user can see before clicking it. */}
+          {eras && eras.length > 0 && onEraToggle && (
+            <div className="filter-group filter-group-wide">
+              <label className="filter-label">Era</label>
+              <div className="era-chips" role="group" aria-label="Filter by era">
+                {eras.map((era) => {
+                  const selected = selectedEras.includes(era.slug);
+                  // An unselected chip with no matches leads nowhere; dim it, but
+                  // keep it clickable so a selected chip can always be turned off.
+                  const empty = era.count === 0 && !selected;
+                  return (
+                    <button
+                      key={era.slug}
+                      type="button"
+                      className={`era-chip${selected ? ' selected' : ''}${empty ? ' empty' : ''}`}
+                      aria-pressed={selected}
+                      title={`${era.label} (${era.start_year}–${era.end_year}) — ${era.count.toLocaleString()} composers`}
+                      onClick={() => onEraToggle(era.slug)}
+                    >
+                      {era.label}
+                      <span className="era-chip-count">{era.count.toLocaleString()}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Year Range Slider */}
           <div className="filter-group">
             <label className="filter-label">

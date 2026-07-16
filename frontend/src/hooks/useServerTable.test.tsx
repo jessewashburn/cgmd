@@ -19,6 +19,7 @@ function buildFilterParams(f: TableFilterState): Record<string, string | number>
     p.year_min = min;
     p.year_max = max;
   }
+  if (f.eras.length) p.composer_eras = f.eras.join(',');
   return p;
 }
 
@@ -128,8 +129,98 @@ describe('useServerTable', () => {
       instrumentation: 'Guitar solo',
       country: 'Spain',
       yearRange: [1800, 1900],
+      eras: [],
     });
     expect(result.current.page).toBe(2);
+  });
+
+  describe('era selection', () => {
+    it('toggles eras into and out of the URL as CSV, resetting the page', async () => {
+      const { wrapper, location } = makeHarness(['/works?page=4']);
+      const { result } = renderHook(() => useServerTable(config), { wrapper });
+      await waitFor(() => expect(lastRequestUrl()).toBeDefined());
+
+      act(() => result.current.toggleEra('romantic'));
+      await waitFor(() => expect(urlParams(location.search).get('eras')).toBe('romantic'));
+      expect(urlParams(location.search).get('page')).toBeNull();
+
+      act(() => result.current.toggleEra('modern'));
+      await waitFor(() =>
+        expect(urlParams(location.search).get('eras')).toBe('romantic,modern'),
+      );
+
+      // Toggling an active era off removes just that one.
+      act(() => result.current.toggleEra('romantic'));
+      await waitFor(() => expect(urlParams(location.search).get('eras')).toBe('modern'));
+
+      // Removing the last one drops the param entirely rather than leaving ?eras=.
+      act(() => result.current.toggleEra('modern'));
+      await waitFor(() => expect(urlParams(location.search).get('eras')).toBeNull());
+    });
+
+    it('parses ?eras= from a shared URL and maps it to the backend param', async () => {
+      const { wrapper } = makeHarness(['/works?eras=romantic,modern']);
+      const { result } = renderHook(() => useServerTable(config), { wrapper });
+      await waitFor(() => expect(lastRequestUrl()).toBeDefined());
+
+      expect(result.current.filters.eras).toEqual(['romantic', 'modern']);
+      // CSV on the wire — not eras[]=, which is what axios does with an array.
+      expect(reqParams().get('composer_eras')).toBe('romantic,modern');
+      expect(reqParams().getAll('composer_eras[]')).toEqual([]);
+    });
+
+    it('normalizes a hand-edited ?eras= the way the backend does', async () => {
+      // The backend lowercases/dedupes; if the hook didn't, ?eras=MODERN would
+      // filter server-side while the Modern chip stayed unlit.
+      const { wrapper } = makeHarness(['/works?eras=Romantic,%20MODERN,romantic']);
+      const { result } = renderHook(() => useServerTable(config), { wrapper });
+      await waitFor(() => expect(lastRequestUrl()).toBeDefined());
+
+      expect(result.current.filters.eras).toEqual(['romantic', 'modern']);
+    });
+
+    it('toggling off an era that arrived in a different case removes it', async () => {
+      const { wrapper, location } = makeHarness(['/works?eras=MODERN']);
+      const { result } = renderHook(() => useServerTable(config), { wrapper });
+      await waitFor(() => expect(lastRequestUrl()).toBeDefined());
+
+      act(() => result.current.toggleEra('modern'));
+      // Removed, not appended as a second lowercase copy.
+      await waitFor(() => expect(urlParams(location.search).get('eras')).toBeNull());
+    });
+
+    it('sends eras alongside the year range (the two filters compose)', async () => {
+      const { wrapper } = makeHarness(['/works?eras=baroque&ymin=1900&ymax=2000']);
+      renderHook(() => useServerTable(config), { wrapper });
+      await waitFor(() => expect(lastRequestUrl()).toBeDefined());
+
+      await waitFor(() => expect(reqParams().get('composer_eras')).toBe('baroque'));
+      expect(reqParams().get('year_min')).toBe('1900');
+      expect(reqParams().get('year_max')).toBe('2000');
+    });
+
+    it('clearFilters drops the era selection too', async () => {
+      const { wrapper, location } = makeHarness(['/works?eras=romantic&inst=Duo']);
+      const { result } = renderHook(() => useServerTable(config), { wrapper });
+      await waitFor(() => expect(lastRequestUrl()).toBeDefined());
+
+      act(() => result.current.clearFilters());
+      await waitFor(() => expect(urlParams(location.search).get('eras')).toBeNull());
+      expect(urlParams(location.search).get('inst')).toBeNull();
+    });
+
+    it('keeps `filters` referentially stable across unrelated re-renders', async () => {
+      // eras is derived by splitting a URL string; doing that outside a memo would
+      // hand back a new array (and so a new `filters`) on every render, busting
+      // React.memo on the consuming table.
+      const { wrapper } = makeHarness(['/works?eras=romantic,modern']);
+      const { result, rerender } = renderHook(() => useServerTable(config), { wrapper });
+      await waitFor(() => expect(lastRequestUrl()).toBeDefined());
+
+      const first = result.current.filters;
+      rerender();
+      expect(result.current.filters).toBe(first);
+    });
   });
 
   it('setPage writes/omits the page param (default 1 omitted)', async () => {

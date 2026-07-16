@@ -7,6 +7,9 @@ export interface Composer {
   death_year: number | null;
   is_living: boolean;
   period: string | null;
+  /** Era labels, chronological. Derived from birth/death years, so a composer can
+   *  hold several ("Romantic", "Modern") and an undated one holds none. */
+  eras: string[];
   country: Country | null;
   biography: string;
   work_count: number;
@@ -22,6 +25,7 @@ export interface ComposerListItem {
   death_year: number | null;
   is_living: boolean;
   period: string | null;
+  eras: string[];
   country_name: string | null;
   work_count: number;
 }
@@ -41,6 +45,9 @@ export interface Work {
   composition_year: number | null;
   instrumentation_category: InstrumentationCategory | null;
   instrumentation_detail: string;
+  /** Other ways the work can be played, beyond its notated instrumentation.
+   *  Detail view only — the Works table's column means the primary. */
+  alternate_instrumentations: Array<{ id: number; name: string; note: string }>;
   duration_minutes: number | null;
   difficulty_level: number | null;
   movements: number | null;

@@ -54,7 +54,7 @@ export default function AdminComposers() {
     <div className="admin-composers">
       <header className="admin-page-header">
         <div className="header-content">
-          <Link to="/admin" className="back-link">← Back to Dashboard</Link>
+          <Link to="/admin" className="back-link">Back to Dashboard</Link>
           <h1>Manage Composers</h1>
         </div>
       </header>

@@ -29,6 +29,8 @@ export function buildWorkFilterParams(filters: TableFilterState): Record<string,
     params.year_min = min;
     params.year_max = max;
   }
+  // Named for the relation it crosses, matching composer_country above.
+  if (filters.eras.length) params.composer_eras = filters.eras.join(',');
   return params;
 }
 

@@ -5,7 +5,7 @@ the resolution logic and its duplicate-guardrail (NeedsConfirmation).
 """
 import pytest
 
-from music.models import Composer, Work, WorkLink, UserSuggestion
+from music.models import Composer, Country, Work, WorkLink, UserSuggestion
 from music.suggestion_apply import (
     apply_suggestion, find_composer_matches, NeedsConfirmation, UnsupportedSuggestion,
 )
@@ -156,3 +156,88 @@ def test_edit_work_updates_fields_and_links():
     assert work.title == 'New'
     assert work.composition_year == 1999
     assert WorkLink.objects.filter(work=work, url='https://pub.example').exists()
+
+
+# --- instrumentation ---------------------------------------------------------
+
+def test_new_work_categorises_instrumentation():
+    """'Solo Guitar' is not a category name; it has to be mapped to 'Solo'. The old
+    exact-equality matcher returned None here and the work got a NULL category."""
+    s = _suggestion('new_work', NEW_WORK)
+    result = apply_suggestion(s, create_new_composer=True)
+    work = Work.objects.get(pk=result['work']['id'])
+    assert work.instrumentation_detail == 'Solo Guitar'
+    assert work.instrumentation_category.name == 'Solo'
+
+
+def test_edit_work_recategorises_instrumentation():
+    """The Firelight bug: applying an edit that adds instrumentation text left the
+    category NULL, so the work never appeared under ?instrumentation=Octet."""
+    work = WorkFactory(title='Firelight', instrumentation_detail='')
+    s = _suggestion('edit_work', {'instrumentation_detail': 'Octet'}, related_work=work)
+
+    result = apply_suggestion(s)
+    assert 'instrumentation_detail' in result['fields_updated']
+    work.refresh_from_db()
+    assert work.instrumentation_category.name == 'Octet'
+
+
+# --- composer resolution gaps ------------------------------------------------
+
+def test_nickname_matches_existing_composer():
+    """"Chris Gainey" must resolve to "Gainey, Christopher" rather than silently
+    creating a second composer for the same person."""
+    existing = ComposerFactory(full_name='Gainey, Christopher', last_name='Gainey',
+                               name_normalized='')
+    existing.name_normalized = 'gainey, christopher'
+    existing.save()
+
+    exact, _ = find_composer_matches('Chris Gainey')
+    assert exact is not None and exact.id == existing.id
+
+
+def test_nickname_match_works_in_either_direction():
+    existing = ComposerFactory(full_name='Li, Chris', last_name='Li', name_normalized='')
+    existing.name_normalized = 'li, chris'
+    existing.save()
+
+    exact, _ = find_composer_matches('Christopher Li')
+    assert exact is not None and exact.id == existing.id
+
+
+def test_nickname_folding_does_not_merge_different_people():
+    ComposerFactory(full_name='Christopher Parkening', last_name='Parkening')
+    exact, _ = find_composer_matches('Christopher Gainey')
+    assert exact is None
+
+
+def test_created_composer_reuses_country_across_spellings():
+    """get_or_create on the raw submitted string made a new Country per spelling."""
+    usa = Country.objects.create(name='United States')
+    s = _suggestion('new_composer', {'composer_name': 'Someone New',
+                                     'composer_country': 'USA'})
+    result = apply_suggestion(s, create_new_composer=True)
+
+    composer = Composer.objects.get(pk=result['composer']['id'])
+    assert composer.country_id == usa.id
+    assert Country.objects.filter(name__iexact='usa').count() == 0
+
+
+def test_nickname_resolution_surfaces_the_existing_composer():
+    """"Chris Gainey" must offer the existing "Gainey, Christopher" for confirmation
+    rather than being applied straight into a second composer row."""
+    from music.suggestion_apply import NeedsConfirmation
+
+    existing = ComposerFactory(full_name='Gainey, Christopher', last_name='Gainey',
+                               name_normalized='')
+    existing.name_normalized = 'gainey, christopher'
+    existing.save()
+
+    s = UserSuggestion.objects.create(
+        suggestion_type='new_work', title='t', description='',
+        suggested_data={'composer_name': 'Chris Gainey', 'work_title': 'Firelight',
+                        'instrumentation_detail': 'Octet'},
+    )
+    with pytest.raises(NeedsConfirmation) as exc:
+        apply_suggestion(s)
+    assert exc.value.payload['composer']['exact_match']['id'] == existing.id

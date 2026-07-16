@@ -50,11 +50,11 @@ export default function WorkDetailPage() {
     <div className="page page--prose">
       {fromWorks ? (
         <Link to="/works" className="back-link">
-          ← Back to Works
+          Back to Works
         </Link>
       ) : work.composer ? (
         <Link to={`/composers/${work.composer.id}`} className="back-link">
-          ← Back to Composer
+          Back to Composer
         </Link>
       ) : null}
       

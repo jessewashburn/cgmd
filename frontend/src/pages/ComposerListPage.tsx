@@ -1,8 +1,9 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import api from '../lib/api';
 import { ComposerListItem } from '../types';
 import { useInstrumentations } from '../hooks/useInstrumentations';
 import { useCountries } from '../hooks/useCountries';
+import { useEraFacets } from '../hooks/useEraFacets';
 import {
   useServerTable,
   TableFilterState,
@@ -12,6 +13,9 @@ import {
 import Pagination from '../components/ui/Pagination';
 import SearchBar from '../components/ui/SearchBar';
 import AdvancedFilters from '../components/ui/AdvancedFilters';
+import EraConflictNotice, {
+  detectEraConflict,
+} from '../components/ui/AdvancedFilters/EraConflictNotice';
 import FetchingOverlay from '../components/ui/FetchingOverlay';
 import ExpandableComposerRow from '../components/features/composers/ExpandableComposerRow';
 import '../styles/shared/ListPage.css';
@@ -36,6 +40,9 @@ export function buildComposerFilterParams(filters: TableFilterState): Record<str
     params.birth_year_min = min;
     params.birth_year_max = max;
   }
+  // CSV, not a repeated param: buildFilterParams' return type holds strings, and
+  // axios would serialize an array as eras[]= without a custom paramsSerializer.
+  if (filters.eras.length) params.eras = filters.eras.join(',');
   return params;
 }
 
@@ -58,6 +65,25 @@ export default function ComposerListPage() {
     pageSize: 50,
     buildFilterParams: buildComposerFilterParams,
   });
+
+  const { filters } = table;
+  const yearRangeIsDefault =
+    filters.yearRange[0] === DEFAULT_YEAR_MIN && filters.yearRange[1] === DEFAULT_YEAR_MAX;
+
+  // Facet counts reflect every filter *except* the era selection — a facet that
+  // counted itself would show every unpicked era as (0).
+  const eraFacetParams = useMemo(
+    () => buildComposerFilterParams({ ...filters, eras: [] }),
+    [filters],
+  );
+  const eraFacets = useEraFacets(eraFacetParams);
+
+  const eraConflict = detectEraConflict(
+    filters.eras,
+    eraFacets,
+    filters.yearRange,
+    yearRangeIsDefault,
+  );
 
   // Cache loaded works in a ref so this callback stays referentially stable —
   // required for the memoized ExpandableComposerRow to skip re-renders.
@@ -105,6 +131,9 @@ export default function ComposerListPage() {
         onCountryChange={table.setCountry}
         countries={countries}
         onClearFilters={table.clearFilters}
+        eras={eraFacets}
+        selectedEras={table.filters.eras}
+        onEraToggle={table.toggleEra}
       />
 
       <div className="content-area">
@@ -165,7 +194,19 @@ export default function ComposerListPage() {
 
             {table.rows.length === 0 && (
               <div className="empty-state">
-                <p>No composers found. Try adjusting your search.</p>
+                {/* When we can name the culprit, say that instead of the generic line. */}
+                {eraConflict ? (
+                  <EraConflictNotice
+                    conflict={eraConflict}
+                    yearRange={table.filters.yearRange}
+                    onWidenYearRange={table.setYearRange}
+                    onClearYearRange={() =>
+                      table.setYearRange([DEFAULT_YEAR_MIN, DEFAULT_YEAR_MAX])
+                    }
+                  />
+                ) : (
+                  <p>No composers found. Try adjusting your search.</p>
+                )}
               </div>
             )}
 

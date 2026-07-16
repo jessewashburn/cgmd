@@ -15,6 +15,26 @@ export interface TableFilterState {
   instrumentation: string;
   country: string;
   yearRange: [number, number];
+  /** Selected era slugs, e.g. ['romantic', 'modern']. Empty = no era filter. */
+  eras: string[];
+}
+
+/**
+ * Normalize an ?eras= CSV the same way the backend's parse_era_filter does:
+ * lowercase, trimmed, de-duplicated, order preserved.
+ *
+ * Without this the two disagree on a hand-edited URL — ?eras=MODERN filters
+ * correctly server-side (it lowercases) while the Modern chip stays unlit, and
+ * clicking it appends a second copy. Unknown slugs are left in: the frontend has no
+ * static era vocabulary, and the backend already drops them.
+ */
+function parseEras(param: string): string[] {
+  const seen = new Set<string>();
+  for (const raw of param.split(',')) {
+    const slug = raw.trim().toLowerCase();
+    if (slug) seen.add(slug);
+  }
+  return [...seen];
 }
 
 export interface ServerTableConfig {
@@ -57,6 +77,8 @@ export interface ServerTableResult<Row> {
   setInstrumentation: (value: string) => void;
   setCountry: (value: string) => void;
   setYearRange: (range: [number, number]) => void;
+  /** Add/remove one era slug from the selection. */
+  toggleEra: (slug: string) => void;
   clearFilters: () => void;
 }
 
@@ -81,6 +103,10 @@ export function useServerTable<Row>(config: ServerTableConfig): ServerTableResul
   const country = searchParams.get('country') || '';
   const ymin = parseInt(searchParams.get('ymin') || '', 10) || DEFAULT_YEAR_MIN;
   const ymax = parseInt(searchParams.get('ymax') || '', 10) || DEFAULT_YEAR_MAX;
+  // Kept as the raw CSV string, not an array: splitting here would allocate a new
+  // array every render and bust the `filters` memo below (and every React.memo under
+  // it). The split happens inside the memo, keyed on this string.
+  const erasParam = searchParams.get('eras') || '';
 
   const manualSort = sortParam != null;
   const effectiveOrdering = sortParam ?? defaultOrdering;
@@ -209,6 +235,24 @@ export function useServerTable<Row>(config: ServerTableConfig): ServerTableResul
     setYearRangeLocal(range);
   }, []);
 
+  // Discrete control, so it goes straight to the URL — no debounce, same as the dropdowns.
+  const toggleEra = useCallback(
+    (slug: string) => {
+      updateParams((next) => {
+        // Parse before comparing so a hand-edited ?eras=MODERN toggles off rather
+        // than appending a lowercase duplicate.
+        const current = parseEras(next.get('eras') || '');
+        const updated = current.includes(slug)
+          ? current.filter((s) => s !== slug)
+          : [...current, slug];
+        if (updated.length) next.set('eras', updated.join(','));
+        else next.delete('eras');
+        next.delete('page');
+      });
+    },
+    [updateParams],
+  );
+
   const clearFilters = useCallback(() => {
     lastWrittenYear.current = [DEFAULT_YEAR_MIN, DEFAULT_YEAR_MAX];
     setYearRangeLocal([DEFAULT_YEAR_MIN, DEFAULT_YEAR_MAX]);
@@ -217,6 +261,7 @@ export function useServerTable<Row>(config: ServerTableConfig): ServerTableResul
       next.delete('country');
       next.delete('ymin');
       next.delete('ymax');
+      next.delete('eras');
       next.delete('page');
     });
   }, [updateParams]);
@@ -224,8 +269,13 @@ export function useServerTable<Row>(config: ServerTableConfig): ServerTableResul
   // --- Build the request params + query ---
   // Stable reference so consumers/children memoized on `filters` aren't re-rendered needlessly.
   const filters = useMemo<TableFilterState>(
-    () => ({ instrumentation, country, yearRange }),
-    [instrumentation, country, yearRange],
+    () => ({
+      instrumentation,
+      country,
+      yearRange,
+      eras: parseEras(erasParam),
+    }),
+    [instrumentation, country, yearRange, erasParam],
   );
 
   const orderingToSend = debouncedSearch && !manualSort ? undefined : effectiveOrdering;
@@ -236,10 +286,15 @@ export function useServerTable<Row>(config: ServerTableConfig): ServerTableResul
     if (orderingToSend) p.ordering = orderingToSend;
     Object.assign(
       p,
-      buildFilterParams({ instrumentation, country, yearRange: debouncedYear }),
+      buildFilterParams({
+        instrumentation,
+        country,
+        yearRange: debouncedYear,
+        eras: parseEras(erasParam),
+      }),
     );
     return p;
-  }, [page, pageSize, debouncedSearch, orderingToSend, instrumentation, country, debouncedYear, buildFilterParams]);
+  }, [page, pageSize, debouncedSearch, orderingToSend, instrumentation, country, debouncedYear, erasParam, buildFilterParams]);
 
   const query = useQuery({
     queryKey: [queryKey, queryParams],
@@ -275,6 +330,7 @@ export function useServerTable<Row>(config: ServerTableConfig): ServerTableResul
     setInstrumentation,
     setCountry,
     setYearRange,
+    toggleEra,
     clearFilters,
   };
 }

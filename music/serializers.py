@@ -3,6 +3,7 @@ Serializers for the Classical Guitar Music Database API.
 """
 
 from rest_framework import serializers
+from .eras import era_label, sort_era_slugs
 from .models import (
     Country, InstrumentationCategory, DataSource,
     Composer, ComposerAlias, Work, Tag, WorkTag, WorkLink, UserSuggestion
@@ -41,17 +42,35 @@ class ComposerAliasSerializer(serializers.ModelSerializer):
         fields = ['id', 'alias_name', 'alias_type']
 
 
+def _era_labels(composer):
+    """Chronologically ordered era labels for a composer.
+
+    Reads `composer.eras.all()` so a prefetch is used when the caller set one up —
+    the composer list would otherwise fire a query per row. Sorting happens in Python
+    for the same reason: an .order_by() here would defeat the prefetch.
+    """
+    return [
+        era_label(slug)
+        for slug in sort_era_slugs(era.era for era in composer.eras.all())
+    ]
+
+
 class ComposerListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for composer lists"""
     country_name = serializers.CharField(source='country.name', read_only=True)
     work_count = serializers.IntegerField(read_only=True)  # Use annotated field
-    
+    eras = serializers.SerializerMethodField()
+
     class Meta:
         model = Composer
         fields = [
-            'id', 'full_name', 'birth_year', 'death_year', 
-            'is_living', 'country_name', 'period', 'work_count'
+            'id', 'full_name', 'birth_year', 'death_year',
+            'is_living', 'country_name', 'period', 'work_count', 'eras'
         ]
+
+    def get_eras(self, obj):
+        # Flat array of display strings, as WorkListSerializer does for tags.
+        return _era_labels(obj)
 
 
 class ComposerDetailSerializer(serializers.ModelSerializer):
@@ -60,17 +79,21 @@ class ComposerDetailSerializer(serializers.ModelSerializer):
     data_source = DataSourceSerializer(read_only=True)
     aliases = ComposerAliasSerializer(many=True, read_only=True)
     work_count = serializers.IntegerField(read_only=True)  # Use annotated field
-    
+    eras = serializers.SerializerMethodField()
+
     class Meta:
         model = Composer
         fields = [
             'id', 'full_name', 'first_name', 'last_name',
             'birth_year', 'death_year', 'is_living',
-            'country', 'country_description', 'biography', 'period',
+            'country', 'country_description', 'biography', 'period', 'eras',
             'imslp_url', 'wikipedia_url',
             'data_source', 'is_verified', 'work_count', 'aliases',
             'created_at', 'updated_at'
         ]
+
+    def get_eras(self, obj):
+        return _era_labels(obj)
 
 
 class WorkListSerializer(serializers.ModelSerializer):
@@ -132,6 +155,7 @@ class WorkDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer for individual work view"""
     composer = ComposerListSerializer(read_only=True)
     instrumentation_category = InstrumentationCategorySerializer(read_only=True)
+    alternate_instrumentations = serializers.SerializerMethodField()
     data_source = DataSourceSerializer(read_only=True)
     tags = serializers.SerializerMethodField()
     links = serializers.SerializerMethodField()
@@ -144,11 +168,20 @@ class WorkDetailSerializer(serializers.ModelSerializer):
             'composition_year', 'composition_year_approx',
             'duration_minutes', 'key_signature',
             'instrumentation_category', 'instrumentation_detail',
+            'alternate_instrumentations',
             'difficulty_level', 'description', 'movements',
             'imslp_url', 'sheerpluck_url', 'youtube_url', 'score_url',
             'links',
             'data_source', 'is_verified', 'view_count',
             'tags', 'created_at', 'updated_at'
+        ]
+
+    def get_alternate_instrumentations(self, obj):
+        """Other ways this work can be played. Detail view only — the Works table's
+        instrumentation column means the *primary*, which is what it sorts by."""
+        return [
+            {'id': alt.category_id, 'name': alt.category.name, 'note': alt.note}
+            for alt in obj.alternate_instrumentations.select_related('category')
         ]
 
     def get_tags(self, obj):

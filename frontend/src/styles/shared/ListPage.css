@@ -208,6 +208,80 @@
   font-weight: 600;
 }
 
+/* Era chips — the one multi-select filter: several eras read as OR, not AND. */
+.era-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+.era-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  background: #ffffff;
+  border: 2px solid var(--color-border);
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: var(--font-primary);
+  font-size: 0.9rem;
+  color: var(--color-text);
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.era-chip:hover {
+  background-color: rgba(149, 5, 0, 0.05);
+  border-color: var(--color-accent);
+}
+
+.era-chip.selected {
+  background-color: rgba(149, 5, 0, 0.1);
+  border-color: var(--color-accent);
+  font-weight: 600;
+}
+
+/* No composers under the other active filters — usually the birth-year range
+   contradicting the era. Dimmed rather than disabled: still clickable, and the
+   empty state explains the conflict. */
+.era-chip.empty {
+  opacity: 0.45;
+}
+
+.era-chip-count {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.era-chip.selected .era-chip-count {
+  color: var(--color-accent);
+}
+
+/* The chips need the full panel width, unlike the dropdowns. */
+.filter-group-wide {
+  width: 100%;
+}
+
+/* Shown in place of the generic "no composers found" line when the era chips and
+   the birth-year range contradict each other. */
+.era-conflict-notice {
+  max-width: var(--max-width-narrow);
+  text-align: center;
+}
+
+.era-conflict-notice p {
+  margin-bottom: var(--spacing-md);
+  color: var(--color-text);
+}
+
+.era-conflict-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  justify-content: center;
+}
+
 .clear-filters-button {
   padding: var(--spacing-xs) var(--spacing-md);
   background: var(--color-text-secondary);

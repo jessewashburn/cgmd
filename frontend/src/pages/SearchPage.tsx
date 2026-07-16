@@ -123,7 +123,7 @@ export default function SearchPage() {
         <p className="empty-state">Enter a search query to find composers and works</p>
       )}
 
-      <Link to="/" className="back-link search-back-link">← Back to Home</Link>
+      <Link to="/" className="back-link search-back-link">Back to Home</Link>
     </div>
   );
 }
