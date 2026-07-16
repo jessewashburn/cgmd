@@ -17,6 +17,11 @@ interface AdvancedFiltersProps {
   eras?: EraFacet[];
   selectedEras?: string[];
   onEraToggle?: (slug: string) => void;
+  /** Group label. "Era" on /composers; "Composer Era" on /works, where a bare
+   *  "Era" would read as the work's era rather than its composer's. */
+  eraLabel?: string;
+  /** What the chip counts are counting, for the tooltip. */
+  eraCountNoun?: string;
 }
 
 export default function AdvancedFilters({
@@ -33,6 +38,8 @@ export default function AdvancedFilters({
   eras,
   selectedEras = [],
   onEraToggle,
+  eraLabel = 'Era',
+  eraCountNoun = 'composers',
 }: AdvancedFiltersProps) {
   const [showFilters, setShowFilters] = useState(false);
   const [showInstrumentationDropdown, setShowInstrumentationDropdown] = useState(false);
@@ -75,8 +82,8 @@ export default function AdvancedFilters({
               dead end the user can see before clicking it. */}
           {eras && eras.length > 0 && onEraToggle && (
             <div className="filter-group filter-group-wide">
-              <label className="filter-label">Era</label>
-              <div className="era-chips" role="group" aria-label="Filter by era">
+              <label className="filter-label">{eraLabel}</label>
+              <div className="era-chips" role="group" aria-label={`Filter by ${eraLabel.toLowerCase()}`}>
                 {eras.map((era) => {
                   const selected = selectedEras.includes(era.slug);
                   // An unselected chip with no matches leads nowhere; dim it, but
@@ -88,7 +95,7 @@ export default function AdvancedFilters({
                       type="button"
                       className={`era-chip${selected ? ' selected' : ''}${empty ? ' empty' : ''}`}
                       aria-pressed={selected}
-                      title={`${era.label} (${era.start_year}–${era.end_year}) — ${era.count.toLocaleString()} composers`}
+                      title={`${era.label} (${era.start_year}–${era.end_year}) — ${era.count.toLocaleString()} ${eraCountNoun}`}
                       onClick={() => onEraToggle(era.slug)}
                     >
                       {era.label}

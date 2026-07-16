@@ -3,8 +3,8 @@ Test settings.
 
 Local default: in-memory SQLite — fast and requires no external DB. This
 exercises the TrigramSearchFilter's non-PostgreSQL ILIKE fallback path.
-The production/local dev DB is a remote Supabase Postgres; tests must NEVER
-run against it.
+Production is the `db` PostgreSQL 17 container on the EC2 host (see
+AWS_DEPLOYMENT.md); tests must NEVER run against it.
 
 CI (or anyone wanting the real trigram path) sets USE_POSTGRES_TEST=1 and the
 TEST_DB_* env vars to point at a throwaway local Postgres. Trigram-only

@@ -214,6 +214,72 @@ def test_works_composer_eras_returns_each_work_once(api):
     assert titles.count('Romantic Work') == 1
 
 
+def test_works_composer_eras_all_junk_matches_nothing(api):
+    barrios = ComposerFactory(last_name='B', birth_year=1885, death_year=1944)
+    WorkFactory(title='Romantic Work', composer=barrios)
+
+    res = api.get('/api/works/', {'composer_eras': 'bogus'})
+    assert res.data['count'] == 0
+
+
+def test_works_era_facets_count_works_not_composers(api):
+    """The reason /works/ has its own facets action: above a table of works, a
+    composer count would read as a work count and be wrong."""
+    barrios = ComposerFactory(last_name='B', birth_year=1885, death_year=1944)
+    WorkFactory(title='Work One', composer=barrios)
+    WorkFactory(title='Work Two', composer=barrios)
+    WorkFactory(title='Work Three', composer=barrios)
+
+    res = api.get('/api/works/era_facets/')
+    facets = {f['slug']: f['count'] for f in res.data}
+    # One composer, three works — the works endpoint must say 3.
+    assert facets['romantic'] == 3
+    assert facets['modern'] == 3
+    assert facets['baroque'] == 0
+
+    # ...while the composers endpoint still says 1, for the same data.
+    res = api.get('/api/composers/era_facets/')
+    assert {f['slug']: f['count'] for f in res.data}['romantic'] == 1
+
+
+def test_works_era_facets_respect_other_filters(api):
+    """Pins the join-coupling trap: counting off the era join table would report
+    every work by a matching composer, not just the filtered ones."""
+    spain = CountryFactory(name='Spain')
+    france = CountryFactory(name='France')
+    spanish = ComposerFactory(last_name='S', country=spain, birth_year=1885, death_year=1944)
+    french = ComposerFactory(last_name='F', country=france, birth_year=1885, death_year=1944)
+    WorkFactory(title='Spanish Work', composer=spanish)
+    WorkFactory(title='French One', composer=french)
+    WorkFactory(title='French Two', composer=french)
+
+    res = api.get('/api/works/era_facets/', {'composer_country': 'Spain'})
+    facets = {f['slug']: f['count'] for f in res.data}
+    assert facets['romantic'] == 1, 'facet counted works outside the country filter'
+
+
+def test_works_era_facets_exclude_their_own_filter(api):
+    barrios = ComposerFactory(last_name='B', birth_year=1885, death_year=1944)
+    dowland = ComposerFactory(last_name='D', birth_year=1563, death_year=1626)
+    WorkFactory(title='Romantic Work', composer=barrios)
+    WorkFactory(title='Baroque Work', composer=dowland)
+
+    res = api.get('/api/works/era_facets/', {'composer_eras': 'romantic'})
+    facets = {f['slug']: f['count'] for f in res.data}
+    assert facets['baroque'] == 1, 'era selection wrongly narrowed its own facet counts'
+    assert facets['romantic'] == 1
+
+
+def test_works_era_facets_exclude_non_public_works(api):
+    barrios = ComposerFactory(last_name='B', birth_year=1885, death_year=1944)
+    WorkFactory(title='Public', composer=barrios, is_public=True)
+    WorkFactory(title='Hidden', composer=barrios, is_public=False)
+
+    res = api.get('/api/works/era_facets/')
+    facets = {f['slug']: f['count'] for f in res.data}
+    assert facets['romantic'] == 1
+
+
 def test_manual_era_tag_is_filterable(api):
     """An admin override participates in search exactly like a derived tag."""
     composer = ComposerFactory(full_name='Neo Baroque', last_name='N', birth_year=1950,

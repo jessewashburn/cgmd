@@ -747,11 +747,19 @@ class WorkViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         queryset = super().get_queryset()
-        
+
         # Add prefetch for detail views only (tags + bespoke links needed there)
         if self.action == 'retrieve':
             queryset = queryset.prefetch_related('work_tags__tag', 'links').select_related('data_source')
 
+        return self._apply_filters(queryset)
+
+    def _apply_filters(self, queryset, include_eras=True):
+        """The hand-rolled range/name filters, mirroring ComposerViewSet.
+
+        `include_eras=False` is for the era_facets action, which counts each era
+        against every *other* filter but not against the era selection itself.
+        """
         # Ordering (default title_sort_key + search-relevance handling) is owned by
         # NullsLastOrderingFilter, so no manual order_by here.
 
@@ -792,21 +800,8 @@ class WorkViewSet(viewsets.ModelViewSet):
                 composer__country__name=composer_country
             )
 
-        # Filter by the composer's era(s) — ?composer_eras=romantic,modern.
-        # Same OR-within/AND-across contract as /composers/?eras=; named for the
-        # relation it crosses, matching composer_country / composer_birth_year_*.
-        composer_eras = self.request.query_params.get('composer_eras')
-        if composer_eras:
-            from .eras import parse_era_filter
-
-            slugs = parse_era_filter(composer_eras)
-            if not slugs:
-                return queryset.none()
-
-            matching_eras = ComposerEra.objects.filter(
-                composer=OuterRef('composer_id'), era__in=slugs
-            )
-            queryset = queryset.filter(Exists(matching_eras))
+        if include_eras:
+            queryset = self._apply_era_filter(queryset)
 
         # Filter by composition year range
         year_min = self.request.query_params.get('composition_year_min')
@@ -851,9 +846,84 @@ class WorkViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(difficulty_level__gte=difficulty_min)
         if difficulty_max:
             queryset = queryset.filter(difficulty_level__lte=difficulty_max)
-        
+
         return queryset
-    
+
+    def _apply_era_filter(self, queryset):
+        """?composer_eras=romantic,modern — works whose composer holds ANY of them.
+
+        Same OR-within/AND-across contract as /composers/?eras=; named for the
+        relation it crosses, matching composer_country / composer_birth_year_*.
+        """
+        from .eras import parse_era_filter
+
+        raw = self.request.query_params.get('composer_eras')
+        if not raw:
+            return queryset
+
+        slugs = parse_era_filter(raw)
+        if not slugs:
+            # Present but unparseable — no works, not every work. Same rule as an
+            # unrecognised ?instrumentation= term.
+            return queryset.none()
+
+        matching_eras = ComposerEra.objects.filter(
+            composer=OuterRef('composer_id'), era__in=slugs
+        )
+        return queryset.filter(Exists(matching_eras))
+
+    @action(detail=False, methods=['get'])
+    def era_facets(self, request):
+        """**Work** count per era under the currently-applied other filters.
+
+        Deliberately not the composer counts /composers/era_facets/ returns: above a
+        table of works, "Baroque 50" would read as 50 works when it means 50
+        composers. Same shape, different unit — the chips are counting whatever the
+        table below them lists.
+
+        As on /composers/, the era filter is excluded from its own counts, or picking
+        one era would drive every other chip to (0).
+        """
+        from .eras import era_windows, implied_birth_range
+
+        works = self.filter_queryset(
+            self._apply_filters(
+                Work.objects.filter(is_public=True), include_eras=False
+            )
+        )
+        # One row per (era, work) pair for the filtered set, counted per era. Grouping
+        # on the join table directly — a values('eras__era') on Work would need a
+        # to-many join in the outer query, which inflates any ordering already applied.
+        # Count works, grouped by their composer's era(s). A work whose composer holds
+        # two eras counts under both, matching the filter's OR semantics.
+        #
+        # Counted off Work (pk__in against the filtered set) rather than off
+        # ComposerEra: filtering and annotating across the same to-many relation makes
+        # the two share a join, so a Count('composer__works') there silently depends on
+        # that coupling. Counting the rows the table below actually lists is exact.
+        counts = dict(
+            Work.objects.filter(pk__in=works.values('pk'))
+            .values_list('composer__eras__era')
+            # order_by() clears the inherited ordering; otherwise Django folds the
+            # ordering field into the GROUP BY and counts come back per-row.
+            .order_by()
+            .annotate(count=Count('pk', distinct=True))
+        )
+
+        facets = []
+        for slug, label, start, end in era_windows():
+            birth_min, birth_max = implied_birth_range(slug)
+            facets.append({
+                'slug': slug,
+                'label': label,
+                'start_year': start,
+                'end_year': end,
+                'implied_birth_min': birth_min,
+                'implied_birth_max': birth_max,
+                'count': counts.get(slug, 0),
+            })
+        return Response(facets)
+
     def retrieve(self, request, *args, **kwargs):
         """Increment view count when retrieving a work"""
         instance = self.get_object()

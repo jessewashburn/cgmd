@@ -24,15 +24,22 @@ export interface EraFacet {
  * would return nothing ("Baroque (0)") instead of letting the user click into an
  * empty table.
  *
+ * `endpoint` picks the unit: '/composers/era_facets/' counts composers,
+ * '/works/era_facets/' counts works. The chips must count whatever the table below
+ * them lists — composer counts over a works table read as work counts and are wrong.
+ *
  * `params` must be the caller's already-memoized filter params minus the era
  * selection; the backend excludes the era filter from these counts on its side too
  * (a facet that counted itself would drive every other chip to zero).
  */
-export function useEraFacets(params: Record<string, string | number>) {
+export function useEraFacets(
+  endpoint: string,
+  params: Record<string, string | number>,
+) {
   const { data } = useQuery({
-    queryKey: ['era-facets', params],
+    queryKey: ['era-facets', endpoint, params],
     queryFn: async () => {
-      const res = await api.get<EraFacet[]>('/composers/era_facets/', { params });
+      const res = await api.get<EraFacet[]>(endpoint, { params });
       return res.data;
     },
     // Reference-ish data that only shifts when filters do; keep the previous counts

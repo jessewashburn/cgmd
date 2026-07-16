@@ -1,7 +1,9 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { WorkListItem } from '../types';
 import { useInstrumentations } from '../hooks/useInstrumentations';
 import { useCountries } from '../hooks/useCountries';
+import { useEraFacets } from '../hooks/useEraFacets';
 import {
   useServerTable,
   TableFilterState,
@@ -84,6 +86,15 @@ export default function WorkListPage() {
     buildFilterParams: buildWorkFilterParams,
   });
 
+  // Counts exclude the era selection itself — a facet that counted its own filter
+  // would show every unpicked era as (0). /works/era_facets/ counts *works*, so the
+  // chips agree with the table underneath them.
+  const eraFacetParams = useMemo(
+    () => buildWorkFilterParams({ ...table.filters, eras: [] }),
+    [table.filters],
+  );
+  const eraFacets = useEraFacets('/works/era_facets/', eraFacetParams);
+
   return (
     <div className="list-page">
       <header className="page-header">
@@ -107,6 +118,11 @@ export default function WorkListPage() {
         onCountryChange={table.setCountry}
         countries={countries}
         onClearFilters={table.clearFilters}
+        eraLabel="Composer Era"
+        eraCountNoun="works"
+        eras={eraFacets}
+        selectedEras={table.filters.eras}
+        onEraToggle={table.toggleEra}
       />
 
       <div className="content-area">

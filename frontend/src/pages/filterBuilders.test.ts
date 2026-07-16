@@ -41,6 +41,14 @@ describe('buildWorkFilterParams', () => {
       composer_eras: 'romantic,modern',
     });
   });
+
+  it('names the era param for the relation it crosses, not "eras"', () => {
+    // /works/ filters on the *composer's* era, so the param is composer_eras —
+    // matching composer_country. Sending a bare `eras` would be silently ignored.
+    const params = buildWorkFilterParams({ ...noFilters, eras: ['baroque'] });
+    expect(params).toHaveProperty('composer_eras');
+    expect(params).not.toHaveProperty('eras');
+  });
 });
 
 describe('buildComposerFilterParams', () => {

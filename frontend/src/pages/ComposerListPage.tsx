@@ -76,7 +76,7 @@ export default function ComposerListPage() {
     () => buildComposerFilterParams({ ...filters, eras: [] }),
     [filters],
   );
-  const eraFacets = useEraFacets(eraFacetParams);
+  const eraFacets = useEraFacets('/composers/era_facets/', eraFacetParams);
 
   const eraConflict = detectEraConflict(
     filters.eras,

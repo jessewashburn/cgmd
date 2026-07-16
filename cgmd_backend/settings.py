@@ -88,21 +88,27 @@ WSGI_APPLICATION = 'cgmd_backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-# PostgreSQL configuration (Supabase)
+# PostgreSQL. In prod this is the `db` container co-located on the EC2 host
+# (compose sets DB_HOST=db); see AWS_DEPLOYMENT.md. Not RDS, not Supabase.
+#
+# The HOST default is deliberately `localhost`: a missing DB_HOST must fail against
+# a local port, never silently reach a remote database. This default used to be a
+# hardcoded Supabase hostname, which meant an unset DB_HOST connected to a live
+# third-party instance without anything saying so.
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.getenv('DB_NAME', 'postgres'),
         'USER': os.getenv('DB_USER', 'postgres'),
         'PASSWORD': os.getenv('DB_PASSWORD', ''),
-        'HOST': os.getenv('DB_HOST', 'db.bdnyxtqjybodndiedgfg.supabase.co'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
         'PORT': os.getenv('DB_PORT', '5432'),
-        # Reuse connections across requests. Opening a fresh TCP+TLS handshake on every
-        # request is the dominant latency cost (badly amplified when the DB is cross-region).
-        # CONN_HEALTH_CHECKS pings a pooled connection before reuse and transparently
-        # reconnects if it went stale — which is what the old "avoid timeouts" workaround
-        # was guarding against. Override with DB_CONN_MAX_AGE=0 if ever fronted by a
-        # transaction-mode pooler that dislikes long-lived connections.
+        # Reuse connections across requests. This mattered enormously when the DB was
+        # remote and cross-region; with db co-located on the EC2 host it's cheap
+        # insurance rather than the dominant cost. CONN_HEALTH_CHECKS pings a pooled
+        # connection before reuse and transparently reconnects if it went stale.
+        # Override with DB_CONN_MAX_AGE=0 if ever fronted by a transaction-mode pooler
+        # that dislikes long-lived connections.
         'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '600')),
         'CONN_HEALTH_CHECKS': True,
         'OPTIONS': {
