@@ -13,8 +13,8 @@ export default function AboutPage() {
         </p>
         <p>
           The inspiration for this database came to me as a young classical guitar student trying to pick 
-          repertoire for my recitals. I was always looking for hidden gems to complement the 100 or so canonical pieces 
-          that everyone else splayed, but the research this required was exhausting. The music
+          repertoire for my recitals. I remember scouring the web for hidden gems to complement the canonical works everyone else played. 
+          The search was exhausting, yet I always felt I was only scratching the surface. The music
           was scattered across different corners of the web, buried in forums, composer websites, 
           and personal collections.
         </p>
