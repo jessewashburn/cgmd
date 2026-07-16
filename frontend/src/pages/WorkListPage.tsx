@@ -4,12 +4,8 @@ import { WorkListItem } from '../types';
 import { useInstrumentations } from '../hooks/useInstrumentations';
 import { useCountries } from '../hooks/useCountries';
 import { useEraFacets } from '../hooks/useEraFacets';
-import {
-  useServerTable,
-  TableFilterState,
-  DEFAULT_YEAR_MIN,
-  DEFAULT_YEAR_MAX,
-} from '../hooks/useServerTable';
+import { useServerTable } from '../hooks/useServerTable';
+import { buildWorkFilterParams } from './filterBuilders';
 import DataTable, { Column } from '../components/ui/DataTable';
 import Pagination from '../components/ui/Pagination';
 import SearchBar from '../components/ui/SearchBar';
@@ -17,24 +13,6 @@ import AdvancedFilters from '../components/ui/AdvancedFilters';
 import FetchingOverlay from '../components/ui/FetchingOverlay';
 import SuggestionButton from '../components/features/SuggestionButton';
 import '../styles/shared/ListPage.css';
-
-// Map the generic filter state to the /works/ backend query params.
-// Module-level so the reference is stable across renders.
-export function buildWorkFilterParams(filters: TableFilterState): Record<string, string | number> {
-  const params: Record<string, string | number> = {};
-  if (filters.instrumentation) params.instrumentation = filters.instrumentation;
-  if (filters.country) params.composer_country = filters.country;
-  const [min, max] = filters.yearRange;
-  if (min !== DEFAULT_YEAR_MIN || max !== DEFAULT_YEAR_MAX) {
-    // Combined year filter: matches composer birth year, falling back to the
-    // work's composition year when the composer has no birth year on record.
-    params.year_min = min;
-    params.year_max = max;
-  }
-  // Named for the relation it crosses, matching composer_country above.
-  if (filters.eras.length) params.composer_eras = filters.eras.join(',');
-  return params;
-}
 
 // Module-level stable reference so the memoized DataTable isn't re-rendered on every keystroke.
 const getWorkRowKey = (work: WorkListItem) => work.id;

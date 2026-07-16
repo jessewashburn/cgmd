@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildWorkFilterParams } from './WorkListPage';
-import { buildComposerFilterParams } from './ComposerListPage';
+import { buildWorkFilterParams, buildComposerFilterParams } from './filterBuilders';
 import { DEFAULT_YEAR_MIN, DEFAULT_YEAR_MAX, TableFilterState } from '../hooks/useServerTable';
 
 const noFilters: TableFilterState = {

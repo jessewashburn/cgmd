@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import { SuggestionTarget } from '../../types';
 import SuggestionModal from './SuggestionModal';
 import './SuggestionButton.css';
 
 interface SuggestionButtonProps {
   itemType: 'composer' | 'work';
-  itemData: any;
+  itemData: SuggestionTarget;
 }
 
 export default function SuggestionButton({ itemType, itemData }: SuggestionButtonProps) {

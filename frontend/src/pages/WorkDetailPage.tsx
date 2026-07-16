@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { workService } from '../lib';
 import { youtubeSearchQuery } from '../lib/composerName';
@@ -19,11 +19,10 @@ export default function WorkDetailPage() {
   // Check if we came from the works list
   const fromWorks = location.state?.from === 'works';
 
-  useEffect(() => {
-    loadWork();
-  }, [id]);
-
-  const loadWork = async () => {
+  // Memoized on id so the effect below can depend on it honestly: an unmemoized
+  // loader would be a new function each render and refetch in a loop. Defined
+  // before the effect because a dependency array is read during render.
+  const loadWork = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     try {
@@ -34,7 +33,11 @@ export default function WorkDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    loadWork();
+  }, [loadWork]);
 
   if (loading) return <LoadingSpinner />;
   if (!work) return <ErrorMessage title="Work Not Found" message="The requested work could not be found." />;

@@ -23,8 +23,9 @@ export default function AdminComposers() {
       const response = await api.get(`/composers/`);
       setComposers(response.data.results || response.data);
       setError(null);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load composers');
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { detail?: string } } };
+      setError(axiosError.response?.data?.detail || 'Failed to load composers');
     } finally {
       setLoading(false);
     }
@@ -38,8 +39,9 @@ export default function AdminComposers() {
     try {
       await api.delete(`/composers/${id}/`);
       setComposers(composers.filter(c => c.id !== id));
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to delete composer');
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { detail?: string } } };
+      alert(axiosError.response?.data?.detail || 'Failed to delete composer');
     }
   };
 

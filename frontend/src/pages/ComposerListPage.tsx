@@ -6,16 +6,15 @@ import { useCountries } from '../hooks/useCountries';
 import { useEraFacets } from '../hooks/useEraFacets';
 import {
   useServerTable,
-  TableFilterState,
   DEFAULT_YEAR_MIN,
   DEFAULT_YEAR_MAX,
 } from '../hooks/useServerTable';
+import { buildComposerFilterParams } from './filterBuilders';
 import Pagination from '../components/ui/Pagination';
 import SearchBar from '../components/ui/SearchBar';
 import AdvancedFilters from '../components/ui/AdvancedFilters';
-import EraConflictNotice, {
-  detectEraConflict,
-} from '../components/ui/AdvancedFilters/EraConflictNotice';
+import EraConflictNotice from '../components/ui/AdvancedFilters/EraConflictNotice';
+import { detectEraConflict } from '../components/ui/AdvancedFilters/detectEraConflict';
 import FetchingOverlay from '../components/ui/FetchingOverlay';
 import ExpandableComposerRow from '../components/features/composers/ExpandableComposerRow';
 import '../styles/shared/ListPage.css';
@@ -28,22 +27,6 @@ interface ComposerWork {
     id: number;
     name: string;
   } | null;
-}
-
-// Map the generic filter state to the /composers/ backend query params. Module-level = stable ref.
-export function buildComposerFilterParams(filters: TableFilterState): Record<string, string | number> {
-  const params: Record<string, string | number> = {};
-  if (filters.instrumentation) params.instrumentation = filters.instrumentation;
-  if (filters.country) params.country_name = filters.country;
-  const [min, max] = filters.yearRange;
-  if (min !== DEFAULT_YEAR_MIN || max !== DEFAULT_YEAR_MAX) {
-    params.birth_year_min = min;
-    params.birth_year_max = max;
-  }
-  // CSV, not a repeated param: buildFilterParams' return type holds strings, and
-  // axios would serialize an array as eras[]= without a custom paramsSerializer.
-  if (filters.eras.length) params.eras = filters.eras.join(',');
-  return params;
 }
 
 // Column header -> backend ordering field

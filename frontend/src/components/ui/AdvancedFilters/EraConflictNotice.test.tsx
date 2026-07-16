@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import EraConflictNotice, { detectEraConflict } from './EraConflictNotice';
+import EraConflictNotice from './EraConflictNotice';
+import { detectEraConflict } from './detectEraConflict';
 import { EraFacet } from '../../../hooks/useEraFacets';
 import { DEFAULT_YEAR_MIN, DEFAULT_YEAR_MAX } from '../../../hooks/useServerTable';
 

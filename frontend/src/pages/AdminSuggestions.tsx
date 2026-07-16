@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../lib/api';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import PageHeader from '../components/layout/PageHeader';
 import './AdminSuggestions.css';
@@ -39,6 +39,22 @@ interface ApplyPrompt {
   suggestedName: string;
   exactMatch: ComposerMatch | null;
   looseMatches: ComposerMatch[];
+}
+
+/** What POST /suggestions/:id/apply/ reports back on success. */
+interface ApplyResult {
+  composer?: { action?: string };
+  work?: { action?: string };
+  fields_updated?: string[];
+  links_added?: number;
+}
+
+/** The composer candidates the same endpoint returns with a 409 when the
+ *  suggested composer name is ambiguous. */
+interface AmbiguousComposer {
+  suggested?: { name?: string };
+  exact_match?: ComposerMatch | null;
+  loose_matches?: ComposerMatch[];
 }
 
 export default function AdminSuggestions() {
@@ -110,7 +126,7 @@ export default function AdminSuggestions() {
     }
   };
 
-  const summarizeApply = (data: Record<string, any>) => {
+  const summarizeApply = (data: ApplyResult) => {
     const parts: string[] = [];
     if (data.composer) parts.push(`composer ${data.composer.action}`);
     if (data.work) parts.push(`work ${data.work.action}`);
@@ -131,7 +147,9 @@ export default function AdminSuggestions() {
       fetchSuggestions();
       setSelectedSuggestion(null);
     } catch (error: unknown) {
-      const err = error as { response?: { status?: number; data?: { error?: string; composer?: any } } };
+      const err = error as {
+        response?: { status?: number; data?: { error?: string; composer?: AmbiguousComposer } };
+      };
       if (err.response?.status === 409 && err.response.data?.composer) {
         const c = err.response.data.composer;
         setApplyPrompt({

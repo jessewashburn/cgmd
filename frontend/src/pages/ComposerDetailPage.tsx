@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { composerService } from '../lib';
 import { Composer, Work } from '../types';
@@ -15,11 +15,10 @@ export default function ComposerDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadComposer();
-  }, [id]);
-
-  const loadComposer = async () => {
+  // Memoized on id so the effect below can depend on it honestly: an unmemoized
+  // loader would be a new function each render and refetch in a loop. Defined
+  // before the effect because a dependency array is read during render.
+  const loadComposer = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     setError(null);
@@ -36,7 +35,11 @@ export default function ComposerDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    loadComposer();
+  }, [loadComposer]);
 
   if (loading) return <LoadingSpinner />;
   if (error) return <ErrorMessage title="Error Loading Composer" message={error} />;

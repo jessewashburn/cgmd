@@ -1,20 +1,37 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../lib/api';
+import { SuggestionTarget, Work } from '../../types';
 import LinkListEditor, { DraftLink } from '../ui/LinkListEditor';
 import InstrumentationChips from '../ui/InstrumentationChips';
 import { useInstrumentations } from '../../hooks/useInstrumentations';
 import './SuggestionModal.css';
 
+/** The form's working copy: a SuggestionTarget whose alternate_instrumentations
+ *  are always names. Both ways state is set (initial value and the re-fetch below)
+ *  normalize them, so the editor never has to handle the API's object form. */
+type SuggestionDraft = Omit<SuggestionTarget, 'alternate_instrumentations'> & {
+  alternate_instrumentations?: string[];
+};
+
+/** Names, whether they arrive as API objects or already-normalized names. */
+const toNames = (items: SuggestionTarget['alternate_instrumentations']): string[] =>
+  (items ?? []).map((a) => (typeof a === 'string' ? a : a.name));
+
+const toDraft = (item: SuggestionTarget): SuggestionDraft => ({
+  ...item,
+  alternate_instrumentations: toNames(item.alternate_instrumentations),
+});
+
 interface SuggestionModalProps {
   isOpen: boolean;
   onClose: () => void;
   itemType: 'composer' | 'work';
-  itemData: any;
+  itemData: SuggestionTarget;
 }
 
 export default function SuggestionModal({ isOpen, onClose, itemType, itemData }: SuggestionModalProps) {
-  const [formData, setFormData] = useState<any>(itemData);
+  const [formData, setFormData] = useState<SuggestionDraft>(() => toDraft(itemData));
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -33,14 +50,12 @@ export default function SuggestionModal({ isOpen, onClose, itemType, itemData }:
     api.get(`/works/${itemData.id}/`)
       .then((res) => {
         if (cancelled) return;
-        const work = res.data;
+        const work: Work = res.data;
         const links: DraftLink[] = (work.links || [])
-          .filter((l: any) => l.id != null) // bespoke WorkLinks only, not legacy-column links
-          .map((l: any) => ({ label: l.label, url: l.url, link_type: l.link_type }));
+          .filter((l) => l.id != null) // bespoke WorkLinks only, not legacy-column links
+          .map((l) => ({ label: l.label, url: l.url, link_type: l.link_type }));
         // Names, not ids — the API takes names back (ids differ per environment).
-        const alternate_instrumentations: string[] =
-          (work.alternate_instrumentations || []).map((a: any) => a.name);
-        setFormData({ ...work, links, alternate_instrumentations });
+        setFormData({ ...work, links, alternate_instrumentations: toNames(work.alternate_instrumentations) });
       })
       .catch(() => { /* keep the partial itemData as a fallback */ })
       .finally(() => { if (!cancelled) setLoadingDetail(false); });
@@ -87,7 +102,7 @@ export default function SuggestionModal({ isOpen, onClose, itemType, itemData }:
     }
   };
 
-  const handleChange = (field: string, value: any) => {
+  const handleChange = (field: keyof SuggestionDraft, value: string | number | null) => {
     setFormData({ ...formData, [field]: value });
   };
 

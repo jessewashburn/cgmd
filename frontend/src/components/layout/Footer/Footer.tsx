@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import SuggestNewWorkModal from '../../ui/SuggestNewWorkModal';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/useAuth';
 import './Footer.css';
 
 export default function Footer() {

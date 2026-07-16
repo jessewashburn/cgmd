@@ -120,3 +120,35 @@ export interface PaginatedResponse<T> {
   previous: string | null;
   results: T[];
 }
+
+/**
+ * A composer or work record the suggestion form can be opened on.
+ *
+ * Every field is optional because callers pass whatever shape they already hold:
+ * full `Composer` / `Work` records from the detail pages, and the lighter rows
+ * list views carry (`ComposerListItem`, a composer's works). The modal re-fetches
+ * the canonical work before editing one, so the fields here are what it can rely
+ * on being *possibly* present — not a promise that any of them are.
+ *
+ * Number-ish fields also admit `string`: they are bound to <input> elements,
+ * which hand back raw strings that go to the API as typed.
+ */
+export interface SuggestionTarget {
+  id?: number;
+  // Composer fields
+  full_name?: string;
+  birth_year?: number | string | null;
+  death_year?: number | string | null;
+  country_name?: string | null;
+  // Work fields
+  title?: string;
+  composer?: { full_name?: string } | null;
+  instrumentation_detail?: string;
+  composition_year?: number | string | null;
+  instrumentation_category?: { name?: string } | null;
+  /** As the API serves them (objects), or as names once normalized for editing. */
+  alternate_instrumentations?: Array<string | { name: string }>;
+  /** Structurally DraftLink (see LinkListEditor); spelled out so this module
+   *  stays free of component imports. `WorkLink[]` satisfies it. */
+  links?: Array<Pick<WorkLink, 'label' | 'url'> & { link_type?: string }>;
+}
