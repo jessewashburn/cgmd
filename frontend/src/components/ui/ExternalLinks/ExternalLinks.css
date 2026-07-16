@@ -62,20 +62,6 @@
   }
 }
 
-/* Dark mode: root flips to color-scheme: dark (see index.css). Because we set
-   an explicit background/color the UA won't repaint the control, but brand red
-   (#950500) is too dark to read on a dark surface — lift border/text to the
-   brand gold for adequate contrast; hover keeps the filled-accent + white. */
-@media (prefers-color-scheme: dark) {
-  .external-link-btn {
-    border-color: var(--color-header);
-    color: var(--color-header);
-  }
-  .external-link-btn:focus-visible {
-    outline-color: var(--color-header);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .external-link-btn {
     transition: none;

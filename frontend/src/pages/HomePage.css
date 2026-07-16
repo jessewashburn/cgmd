@@ -245,18 +245,6 @@
   margin: 0;
 }
 
-/* Brand red is too dark to read on a dark surface — lift to brand gold, as
-   .external-link-btn does. Hover keeps the filled-accent + white. */
-@media (prefers-color-scheme: dark) {
-  .browse-card {
-    border-color: var(--color-header);
-    color: var(--color-header);
-  }
-  .browse-card:focus-visible {
-    outline-color: var(--color-header);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .browse-card {
     transition: none;

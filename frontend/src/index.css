@@ -56,20 +56,11 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
-/* Optional: Add dark theme only when explicitly preferred */
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    color: rgba(255, 255, 255, 0.87);
-    background-color: #242424;
-  }
-  a:hover {
-    color: #535bf2;
-  }
-  button {
-    background-color: #1a1a1a;
-  }
-  body {
-    background-color: #242424;
-  }
-}
+/* No dark theme on purpose — the app is light-only. styles/global.css pins body
+   to --color-background / --color-text with no dark variant, so a
+   prefers-color-scheme block here can't darken the page; it only ever half-applied.
+   The `color-scheme: dark` it used to set was the damaging part: it repainted UA
+   defaults (button text, form controls, scrollbars) dark against a page that
+   stayed light, which is why the hamburger went white-on-gold and why the browse /
+   external-link buttons carried gold overrides to compensate. If a real dark theme
+   is wanted, give global.css's variables dark values first — don't reintroduce it here. */

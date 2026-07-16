@@ -55,8 +55,12 @@ class Command(BaseCommand):
         Country.objects.all().delete()
 
         source, _ = DataSource.objects.get_or_create(name='E2E Seed')
-        solo = InstrumentationCategory.objects.create(name='Guitar solo')
-        duo = InstrumentationCategory.objects.create(name='Guitar duo')
+        # Names must come from CANONICAL_INSTRUMENTATION_CATEGORIES: the
+        # /instrumentations/ list endpoint curates against that exact vocabulary
+        # (name__in=...), so a category named anything else is served as an empty
+        # list and the filter dropdown renders with no options.
+        solo = InstrumentationCategory.objects.create(name='Solo')
+        duo = InstrumentationCategory.objects.create(name='Duo')
 
         countries: dict[str, Country] = {}
         composers: dict[str, Composer] = {}
