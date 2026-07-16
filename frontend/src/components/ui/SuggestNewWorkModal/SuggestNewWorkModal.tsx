@@ -18,6 +18,7 @@ export default function SuggestNewWorkModal({ isOpen, onClose }: SuggestNewWorkM
     work_title: '',
     composition_year: '',
     instrumentation_detail: '',
+    is_arrangement: false,
     comment: '',
     links: [] as DraftLink[],
   });
@@ -78,7 +79,7 @@ export default function SuggestNewWorkModal({ isOpen, onClose }: SuggestNewWorkM
     }
   };
 
-  const handleChange = (field: string, value: string) => {
+  const handleChange = (field: string, value: string | boolean) => {
     setFormData({ ...formData, [field]: value });
   };
 
@@ -174,6 +175,21 @@ export default function SuggestNewWorkModal({ isOpen, onClose }: SuggestNewWorkM
                   max={2100}
                 />
               </div>
+            </div>
+
+            {/* Suggesting the tag doesn't set it: an admin has to apply the suggestion,
+                and it then lands as basis='suggested' so the IMSLP importer won't
+                overwrite the decision. No arranger field — one IMSLP page can host five
+                arrangers, so the column doesn't exist. */}
+            <div className="form-group">
+              <label className="form-checkbox">
+                <input
+                  type="checkbox"
+                  checked={formData.is_arrangement}
+                  onChange={(e) => handleChange('is_arrangement', e.target.checked)}
+                />
+                <span>This is an arrangement (arranged or transcribed for guitar)</span>
+              </label>
             </div>
           </div>
 

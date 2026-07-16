@@ -14,6 +14,7 @@
    Stays an <a> (link semantics) — these are navigations, not buttons. */
 .external-link-btn {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 0.5rem 0.9rem;
@@ -29,6 +30,24 @@
   text-align: center;
   text-decoration: none;
   transition: all 0.2s ease;
+}
+
+/* Stack the verb over its source. The button is a column even with no source (a lone
+   centered label looks identical), which keeps one layout rather than two.
+
+   The source line is not decoration: labels are derived from the link's host, so a work
+   with an IMSLP *and* a Mutopia score renders "View Score" twice, and this is the only
+   thing telling them apart. */
+.external-link-label {
+  display: block;
+}
+
+.external-link-source {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0.8;
+  margin-top: 0.1rem;
 }
 
 .external-link-btn:hover {

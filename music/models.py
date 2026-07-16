@@ -274,7 +274,14 @@ def _sync_eras_on_composer_save(sender, instance, created, update_fields=None, *
 
 class Work(models.Model):
     """Musical works in the classical guitar repertoire"""
-    
+
+    # Follows ComposerEra/WorkInstrumentation's `basis` precedent.
+    ARRANGEMENT_BASIS_CHOICES = [
+        ('derived', 'Derived'),      # from IMSLP's own (arr) categories
+        ('suggested', 'Suggested'),  # from a user suggestion an admin applied
+        ('manual', 'Manual'),        # set by hand
+    ]
+
     # Relationships
     composer = models.ForeignKey(Composer, on_delete=models.CASCADE, related_name='works')
     
@@ -299,7 +306,28 @@ class Work(models.Model):
                                              help_text="Original instrumentation string from source")
     difficulty_level = models.SmallIntegerField(null=True, blank=True,
                                                help_text="1-10 scale")
-    
+
+    # Arrangement provenance
+    #
+    # True when the entry is in this guitar catalog *because a guitar arrangement of it
+    # exists and is linkable* — Bach's violin Chaconne, a vihuela fantasia — rather than
+    # because it was written for the modern guitar. The title stays the original work's
+    # title (IMSLP files arrangements under the original work), so this flag is what
+    # makes such a row legible: without it a violin partita just looks misfiled.
+    #
+    # Deliberately no `arranger` column. One IMSLP page hosts up to five different guitar
+    # arrangements (BWV 1007 has Dada, Gazoni, Reyne, Shorter, Tavares), so a single
+    # CharField would misrepresent it, and we don't filter by arranger. Per-arranger
+    # attribution, if ever wanted, is a side table like WorkInstrumentation.
+    is_arrangement = models.BooleanField(default=False, db_index=True,
+                                        help_text="Arranged/transcribed for guitar rather than "
+                                                  "originally written for it")
+    arrangement_basis = models.CharField(max_length=10, choices=ARRANGEMENT_BASIS_CHOICES,
+                                        default='manual', blank=True,
+                                        help_text="Where is_arrangement came from. Re-running the "
+                                                  "importer rewrites 'derived' only, so a human's "
+                                                  "call survives every backfill.")
+
     # Content
     description = models.TextField(null=True, blank=True)
     movements = models.TextField(null=True, blank=True,

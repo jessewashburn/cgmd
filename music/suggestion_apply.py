@@ -15,6 +15,7 @@ from django.db import connection, transaction
 from django.utils import timezone
 
 from .models import Composer, Work, WorkLink, Country
+from .publishers import is_blocked, resolve_link
 from .utils import clean_country_name
 
 LOOSE_THRESHOLD = 0.5
@@ -238,19 +239,53 @@ def _apply_alternate_instrumentations(work, names):
 
 
 def _attach_links(work, links):
-    added = 0
+    """Attach user-proposed links, refusing rehosting sites.
+
+    This is a PUBLIC write path, so the blocklist has to be enforced here and not only
+    where an admin types. [[alternate-work-instrumentations]] shipped validation on the
+    direct path alone and junk arrived through suggestions instead; there is a test
+    pinning this specific path.
+
+    Returns (added, rejected) — the admin applying the suggestion should see that
+    something was dropped rather than wonder where it went.
+    """
+    added, rejected = 0, 0
     for link in (links or []):
         url = (link.get('url') or '').strip()
         label = (link.get('label') or '').strip()
         if not url or not label:
             continue
+        if is_blocked(url):
+            rejected += 1
+            continue
+        # Derive the type from the host so the CTA is right ("Buy Score" for a publisher)
+        # regardless of what the submitter picked. An unrecognised host keeps its author's
+        # label — arranger self-hosting is legitimate and unlistable.
+        resolved = resolve_link(url)
+        link_type = resolved[0] if resolved else (link.get('link_type') or 'other')
         _, created = WorkLink.objects.get_or_create(
             work=work, url=url,
-            defaults={'label': label, 'link_type': link.get('link_type') or 'other'},
+            defaults={'label': label, 'link_type': link_type},
         )
         if created:
             added += 1
-    return added
+    return added, rejected
+
+
+def _apply_is_arrangement(work, data):
+    """Land a suggested arrangement tag, as `suggested` — never `derived`.
+
+    The basis is what protects this from the importer: a re-run rewrites `derived` rows
+    only, so an admin's decision here survives every backfill.
+    """
+    if 'is_arrangement' not in data:
+        return False
+    value = bool(data.get('is_arrangement'))
+    if work.is_arrangement == value:
+        return False
+    work.is_arrangement = value
+    work.arrangement_basis = 'suggested'
+    return True
 
 
 def _mark_merged(suggestion):
@@ -281,8 +316,11 @@ def _apply_edit_work(suggestion, data):
             work.composition_year = year
             fields_updated.append('composition_year')
 
+    if _apply_is_arrangement(work, data):
+        fields_updated.append('is_arrangement')
+
     work.save()
-    links_added = _attach_links(work, data.get('links'))
+    links_added, links_rejected = _attach_links(work, data.get('links'))
     # After work.save(), so the primary category is up to date and an alternate that
     # merely duplicates it can be recognised and skipped.
     alternates_added = _apply_alternate_instrumentations(
@@ -292,6 +330,7 @@ def _apply_edit_work(suggestion, data):
         'work': {'action': 'updated', 'id': work.id, 'title': work.title},
         'fields_updated': fields_updated,
         'links_added': links_added,
+        'links_rejected': links_rejected,
         'alternates_added': alternates_added,
     }
 
@@ -334,8 +373,11 @@ def _apply_new(suggestion, data, composer_id, create_new_composer):
         if not title:
             raise UnsupportedSuggestion('New-work suggestion has no work title.')
         work, work_action = _get_or_create_work(composer, title, data)
+        if _apply_is_arrangement(work, data):
+            work.save(update_fields=['is_arrangement', 'arrangement_basis', 'updated_at'])
         result['work'] = {'action': work_action, 'id': work.id, 'title': work.title}
-        result['links_added'] = _attach_links(work, data.get('links'))
+        result['links_added'], result['links_rejected'] = _attach_links(
+            work, data.get('links'))
         result['alternates_added'] = _apply_alternate_instrumentations(
             work, data.get('alternate_instrumentations'))
 

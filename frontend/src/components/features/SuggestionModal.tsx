@@ -102,7 +102,10 @@ export default function SuggestionModal({ isOpen, onClose, itemType, itemData }:
     }
   };
 
-  const handleChange = (field: keyof SuggestionDraft, value: string | number | null) => {
+  const handleChange = (
+    field: keyof SuggestionDraft,
+    value: string | number | boolean | null,
+  ) => {
     setFormData({ ...formData, [field]: value });
   };
 
@@ -185,6 +188,19 @@ export default function SuggestionModal({ isOpen, onClose, itemType, itemData }:
             max={2100}
           />
         </div>
+      </div>
+      {/* A checkbox is right here even though the *filter* needed care: a submitter is
+          asserting one fact about one work. No arranger field — an IMSLP page can host
+          five arrangers, so the column doesn't exist (see music/models.py). */}
+      <div className="form-group">
+        <label className="form-checkbox">
+          <input
+            type="checkbox"
+            checked={Boolean(formData.is_arrangement)}
+            onChange={(e) => handleChange('is_arrangement', e.target.checked)}
+          />
+          <span>This is an arrangement (arranged or transcribed for guitar)</span>
+        </label>
       </div>
       <div className="form-group">
         <label>Also playable as</label>

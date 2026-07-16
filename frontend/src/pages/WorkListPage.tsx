@@ -26,6 +26,16 @@ const columns: Column<WorkListItem>[] = [
         <Link to={`/works/${work.id}`} state={{ from: 'works' }} className="link-primary">
           {work.title}
         </Link>
+        {/* An arrangement row carries the ORIGINAL work's title, because that is what
+            IMSLP files it under — so "Violin Partita No.2" would otherwise read as a
+            violin piece misfiled in a guitar catalog. The badge is what makes the row
+            legible. It lives in this accessor rather than in a column of its own: a new
+            sortable column drags in the Works table's ordering hazards for no gain. */}
+        {work.is_arrangement && (
+          <span className="badge-arrangement" title="Arranged or transcribed for guitar">
+            Arrangement
+          </span>
+        )}
         {' '}
         <SuggestionButton itemType="work" itemData={work} />
       </>
@@ -101,6 +111,8 @@ export default function WorkListPage() {
         eras={eraFacets}
         selectedEras={table.filters.eras}
         onEraToggle={table.toggleEra}
+        includeArrangements={table.filters.includeArrangements}
+        onIncludeArrangementsChange={table.setIncludeArrangements}
       />
 
       <div className="content-area">

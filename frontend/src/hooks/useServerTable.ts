@@ -17,6 +17,10 @@ export interface TableFilterState {
   yearRange: [number, number];
   /** Selected era slugs, e.g. ['romantic', 'modern']. Empty = no era filter. */
   eras: string[];
+  /** Show works arranged for guitar as well as those written for it. Defaults to true,
+   *  so the URL carries `arr=0` only when a user has opted them *out* — the common case
+   *  stays a clean URL and an unfiltered query. */
+  includeArrangements: boolean;
 }
 
 /**
@@ -79,6 +83,8 @@ export interface ServerTableResult<Row> {
   setYearRange: (range: [number, number]) => void;
   /** Add/remove one era slug from the selection. */
   toggleEra: (slug: string) => void;
+  /** Show/hide works arranged for guitar. True is the default and writes no URL param. */
+  setIncludeArrangements: (value: boolean) => void;
   clearFilters: () => void;
 }
 
@@ -107,6 +113,9 @@ export function useServerTable<Row>(config: ServerTableConfig): ServerTableResul
   // array every render and bust the `filters` memo below (and every React.memo under
   // it). The split happens inside the memo, keyed on this string.
   const erasParam = searchParams.get('eras') || '';
+  // Absent = included (the default). Only an explicit `arr=0` excludes, so any other
+  // value degrades to the default rather than silently hiding half the catalog.
+  const includeArrangements = searchParams.get('arr') !== '0';
 
   const manualSort = sortParam != null;
   const effectiveOrdering = sortParam ?? defaultOrdering;
@@ -235,6 +244,18 @@ export function useServerTable<Row>(config: ServerTableConfig): ServerTableResul
     setYearRangeLocal(range);
   }, []);
 
+  // Discrete, so straight to the URL. Only the non-default (excluded) state is written.
+  const setIncludeArrangements = useCallback(
+    (value: boolean) => {
+      updateParams((next) => {
+        if (value) next.delete('arr');
+        else next.set('arr', '0');
+        next.delete('page');
+      });
+    },
+    [updateParams],
+  );
+
   // Discrete control, so it goes straight to the URL — no debounce, same as the dropdowns.
   const toggleEra = useCallback(
     (slug: string) => {
@@ -262,6 +283,7 @@ export function useServerTable<Row>(config: ServerTableConfig): ServerTableResul
       next.delete('ymin');
       next.delete('ymax');
       next.delete('eras');
+      next.delete('arr');   // back to included, the default
       next.delete('page');
     });
   }, [updateParams]);
@@ -274,8 +296,9 @@ export function useServerTable<Row>(config: ServerTableConfig): ServerTableResul
       country,
       yearRange,
       eras: parseEras(erasParam),
+      includeArrangements,
     }),
-    [instrumentation, country, yearRange, erasParam],
+    [instrumentation, country, yearRange, erasParam, includeArrangements],
   );
 
   const orderingToSend = debouncedSearch && !manualSort ? undefined : effectiveOrdering;
@@ -291,10 +314,11 @@ export function useServerTable<Row>(config: ServerTableConfig): ServerTableResul
         country,
         yearRange: debouncedYear,
         eras: parseEras(erasParam),
+        includeArrangements,
       }),
     );
     return p;
-  }, [page, pageSize, debouncedSearch, orderingToSend, instrumentation, country, debouncedYear, erasParam, buildFilterParams]);
+  }, [page, pageSize, debouncedSearch, orderingToSend, instrumentation, country, debouncedYear, erasParam, includeArrangements, buildFilterParams]);
 
   const query = useQuery({
     queryKey: [queryKey, queryParams],
@@ -331,6 +355,7 @@ export function useServerTable<Row>(config: ServerTableConfig): ServerTableResul
     setCountry,
     setYearRange,
     toggleEra,
+    setIncludeArrangements,
     clearFilters,
   };
 }
