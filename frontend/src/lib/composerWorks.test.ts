@@ -18,7 +18,8 @@ import { composerService } from './index';
 
 let requestedPages: string[] = [];
 
-const pageOf = (n: number, total: number, size = 100) => {
+// 50 per page — what the endpoint actually serves; it ignores ?page_size.
+const pageOf = (n: number, total: number, size = 50) => {
   const start = (n - 1) * size;
   const results = Array.from({ length: Math.max(0, Math.min(size, total - start)) }, (_, i) => ({
     id: start + i + 1,
@@ -63,7 +64,9 @@ describe('composerService.getWorks', () => {
   it('follows pagination by page number, not the absolute `next` url', async () => {
     serveTotal(168);
     await composerService.getWorks(1);
-    expect(requestedPages).toEqual(['1', '2']);
+    // Bach: 50+50+50+18. BWV 1004 sorts under "V" and is on that last page — the one the
+    // old single-request version never asked for.
+    expect(requestedPages).toEqual(['1', '2', '3', '4']);
   });
 
   it('stops when a single page covers the composer', async () => {

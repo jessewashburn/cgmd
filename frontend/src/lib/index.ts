@@ -34,11 +34,14 @@ export const composerService = {
    */
   getWorks: async (id: number) => {
     const all: Work[] = [];
-    // 12 × 100 leaves generous headroom over the current maximum (219) while stopping a
-    // pathological composer from firing unbounded requests.
-    for (let page = 1; page <= 12; page++) {
+    // This endpoint serves 50 per page and ignores ?page_size, so don't bother sending it:
+    // the busiest composer today (Carulli, 219) takes 5 requests, Bach 4. The cap only
+    // exists so a pathological composer can't fire unbounded requests; `next` is what
+    // actually ends the loop.
+    const MAX_PAGES = 20;
+    for (let page = 1; page <= MAX_PAGES; page++) {
       const response = await api.get<PaginatedResponse<Work>>(`/composers/${id}/works/`, {
-        params: { page, page_size: 100 },
+        params: { page },
       });
       all.push(...(response.data.results || []));
       if (!response.data.next) break;
