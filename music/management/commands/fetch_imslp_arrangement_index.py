@@ -57,11 +57,18 @@ CATEGORY_PRECEDENCE = list(CATEGORY_MAP)
 # "Title (Composer, Forename)" — IMSLP's page-title convention.
 TITLE_RE = re.compile(r'^(.*?)\s*\(([^()]*,[^()]*)\)$')
 
-# Arrangement section headers: "For Guitar (Apke)", "For 2 Guitars (Smith)". The category
-# backlink "For guitar (arr)" matches this shape too, so it is excluded explicitly —
-# without that, every page would look like it had an arrangement and the gate would pass
-# everything.
-ARR_RE = re.compile(r'For\s+(\d+\s+)?Guitars?\s*\(([^)<]{1,60})\)', re.I)
+# Arrangement section headers naming guitar, with the arranger in parens:
+#   "For Guitar (Apke)"  "For 2 Guitars (Höger)"  "For Voice and Guitar (Porro)"
+#
+# The guitar may appear ANYWHERE in the heading, not just straight after "For". An earlier
+# version required `For (\d+ )?Guitars?` and therefore never matched "For Voice and Guitar
+# (X)" — which silently skipped 290 of 291 voice+guitar pages and all 18 guitar+piano ones,
+# 308 works with perfectly real arrangements. The gate must ask "does a guitar arrangement
+# exist", not "is the heading shaped the way I first guessed".
+#
+# The category backlink "For guitar (arr)" matches this shape too and is excluded by the
+# 'arr' check below; without that every page would pass the gate.
+ARR_RE = re.compile(r'For\s+([^<(]{0,40}\bGuitars?\b[^<(]{0,25})\(([^)<]{1,50})\)', re.I)
 
 FIELDNAMES = [
     'imslp_title', 'composer_name', 'work_title', 'source_category',
@@ -139,13 +146,18 @@ class Command(BaseCommand):
 
     @staticmethod
     def parse_arrangers(html):
-        """Distinct guitar arrangers named on the page, excluding the category backlink."""
+        """Distinct guitar arrangers named on the page, excluding the category backlink.
+
+        Recorded for review only — never imported. An IMSLP page can host five different
+        guitar arrangements, so a single arranger field on the work would be a lie.
+        """
         found = []
-        for count, who in ARR_RE.findall(html):
+        for heading, who in ARR_RE.findall(html):
             who = who.strip()
             if who.lower() == 'arr':          # the "For guitar (arr)" category link
                 continue
-            label = f"{count.strip()} {who}".strip() if count.strip() else who
+            forces = ' '.join(heading.split())
+            label = f'{forces}: {who}' if forces.lower() not in ('guitar', 'guitars') else who
             if label not in found:
                 found.append(label)
         return found
