@@ -26,6 +26,7 @@ never touches `suggested`/`manual`.
 
 import csv
 import unicodedata
+import urllib.parse
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
@@ -77,6 +78,25 @@ def normalize(value):
             .encode('ascii', 'ignore').decode('utf-8').lower())
 
 
+def url_key(url):
+    """A comparison key for an IMSLP page URL, immune to percent-encoding differences.
+
+    The same page is spelled two ways in the wild:
+
+        stored:  https://imslp.org/wiki/Batalla_(Sanz%2C_Gaspar)     <- parens literal
+        crawled: https://imslp.org/wiki/Batalla_%28Sanz%2C_Gaspar%29 <- parens encoded
+
+    Both decode to the same title. Matching raw strings found 1 of 318 existing works and
+    would have created ~317 duplicates — the dry-run caught it. The crawler now emits the
+    canonical form, but keying on the decoded title means the importer no longer *depends*
+    on both sides agreeing byte-for-byte, which is the property worth having.
+    """
+    if not url:
+        return None
+    path = url.split('/wiki/', 1)[-1]
+    return urllib.parse.unquote(path).replace('_', ' ').strip().lower()
+
+
 class Command(BaseCommand):
     help = 'Import guitar arrangements from data/imslp_arrangements.csv'
 
@@ -124,12 +144,24 @@ class Command(BaseCommand):
         categories = {c.name: c for c in InstrumentationCategory.objects.all()}
         composer_cache = {}
 
+        # Decoded-URL -> work id, for every work already carrying an IMSLP link (~6.5k).
+        # Built once: a per-row query can't be used because the match is on the *decoded*
+        # URL, which no index covers.
+        existing_by_url = {}
+        for pk, imslp_url in Work.objects.exclude(imslp_url__isnull=True).exclude(
+                imslp_url='').values_list('pk', 'imslp_url'):
+            key = url_key(imslp_url)
+            if key:
+                existing_by_url.setdefault(key, pk)
+        self.stdout.write(f'{len(existing_by_url)} works already carry an IMSLP url')
+
         with transaction.atomic():
             source, _ = DataSource.objects.get_or_create(
                 name='IMSLP', defaults={'url': 'https://imslp.org'})
 
             for row in rows:
-                self._handle_row(row, stats, categories, composer_cache, source, opts)
+                self._handle_row(row, stats, categories, composer_cache, source,
+                                 existing_by_url, opts)
 
             if opts['dry_run']:
                 transaction.set_rollback(True)
@@ -142,7 +174,8 @@ class Command(BaseCommand):
 
     # ------------------------------------------------------------------
 
-    def _handle_row(self, row, stats, categories, composer_cache, source, opts):
+    def _handle_row(self, row, stats, categories, composer_cache, source,
+                    existing_by_url, opts):
         count = row.get('arrangement_count') or '0'
         if not str(count).isdigit() or int(count) < 1:
             # No linkable guitar arrangement -> no row. The admission criterion.
@@ -162,7 +195,10 @@ class Command(BaseCommand):
         composer = self._resolve_composer(row['composer_name'], composer_cache, stats, opts)
         url, title = row['url'], row['work_title']
 
-        existing = Work.objects.filter(imslp_url=url).first()
+        # Match on the DECODED url (see url_key): the stored corpus and the crawler encode
+        # the same page differently, and raw-string matching silently duplicates.
+        existing_pk = existing_by_url.get(url_key(url))
+        existing = Work.objects.filter(pk=existing_pk).first() if existing_pk else None
         if existing is None:
             # Fall back to (composer, normalized title) so a work added by hand before the
             # import isn't duplicated. imslp_url is the primary key for seeded rows.

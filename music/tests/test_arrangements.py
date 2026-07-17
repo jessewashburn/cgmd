@@ -238,6 +238,40 @@ def test_import_never_matches_a_namesake(arrangements_csv):
     assert work.composer.full_name == 'Bach, Johann Sebastian'
 
 
+def test_url_key_ignores_percent_encoding_differences():
+    """The same IMSLP page is spelled two ways in the wild.
+
+    The catalog's 6,572 stored urls leave parentheses literal; a naive quote() encodes
+    them to %28/%29. Raw-string matching found 1 of 318 existing works against real prod
+    data and would have created ~317 duplicates. Keying on the decoded title is what
+    makes the importer immune to that.
+    """
+    from music.management.commands.import_imslp_arrangements import url_key
+
+    stored = 'https://imslp.org/wiki/Batalla_(Sanz%2C_Gaspar)'
+    crawled = 'https://imslp.org/wiki/Batalla_%28Sanz%2C_Gaspar%29'
+    assert stored != crawled                    # the trap
+    assert url_key(stored) == url_key(crawled)  # the fix
+    assert url_key(stored) == 'batalla (sanz, gaspar)'
+    assert url_key('') is None
+
+
+def test_import_retags_a_work_whose_url_is_encoded_differently(arrangements_csv):
+    """End-to-end version of the above: an existing row stored with literal parens must
+    be retro-tagged, not duplicated."""
+    composer = ComposerFactory(full_name='Bach, Johann Sebastian', last_name='Bach',
+                               name_normalized='bach, johann sebastian')
+    WorkFactory(
+        title='Cello Suite No.1, BWV 1007', composer=composer,
+        # Same page as the CSV row, spelled IMSLP's way.
+        imslp_url='https://imslp.org/wiki/Cello_Suite_No.1',
+    )
+
+    call_command('import_imslp_arrangements', csv=arrangements_csv)
+
+    assert Work.objects.filter(title='Cello Suite No.1, BWV 1007').count() == 1
+
+
 def test_import_matches_an_existing_work_by_imslp_url_despite_a_suffixed_title(
         arrangements_csv):
     """The existing IMSLP corpus stores titles with the composer baked in —

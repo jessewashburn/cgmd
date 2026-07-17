@@ -127,7 +127,15 @@ class Command(BaseCommand):
 
     @staticmethod
     def page_url(title):
-        return PAGE + urllib.parse.quote(title.replace(' ', '_'))
+        """IMSLP's canonical URL form: comma percent-encoded, parentheses left literal.
+
+        `safe='()'` is not cosmetic. The catalog's 6,572 existing imslp_url values were
+        written in exactly this form — `..._(Sanz%2C_Gaspar)` — and quote()'s default
+        encodes the parens to %28/%29, producing a different string for the same page.
+        The importer keys on this URL, so the mismatch silently turned every retro-tag
+        into a duplicate work. Match IMSLP, and match what's already stored.
+        """
+        return PAGE + urllib.parse.quote(title.replace(' ', '_'), safe='()')
 
     @staticmethod
     def parse_arrangers(html):
