@@ -213,3 +213,27 @@
     padding: 20px;
   }
 }
+
+/* Checkbox rows ("This is an arrangement").
+   The .form-group input rules above are written for text fields — width:100%, 10px
+   padding, a 2px border — which render a checkbox as a large empty square. Both rules
+   below exist to undo that, so don't drop them as redundant. */
+.form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.form-group input[type='checkbox'] {
+  width: auto;
+  flex: none;
+  height: 16px;
+  min-width: 16px;
+  padding: 0;
+  border-width: 1px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}

@@ -56,14 +56,23 @@ def test_work_list_serializer_shape(api):
         'id', 'title', 'composer', 'catalog_number', 'composition_year',
         'instrumentation_category', 'instrumentation_detail',
         'duration_minutes', 'difficulty_level',
+        # The list renders the "Arrangement" badge from this, so it has to ride the
+        # lightweight serializer rather than the detail one.
+        'is_arrangement',
     }
     assert row['composer'] == {'id': composer.id, 'full_name': 'Work Composer'}
     assert row['instrumentation_category'] == {'id': inst.id, 'name': 'Guitar solo'}
+    assert row['is_arrangement'] is False
 
 
 def test_work_detail_links_merge_legacy_and_bespoke(api):
     """The detail `links` field merges legacy URL columns (first) with bespoke
-    WorkLink rows, each in a uniform shape."""
+    WorkLink rows, each in a uniform shape.
+
+    The IMSLP column now resolves through music.publishers: the label is derived from the
+    host ("View Score", one generic name for every free source) rather than naming the
+    site, and `source` carries the site name so two free score links stay distinguishable.
+    """
     work = WorkFactory(title='Linked Work', imslp_url='https://imslp.org/x')
     WorkLink.objects.create(
         work=work, label='BCGS Commission',
@@ -75,10 +84,13 @@ def test_work_detail_links_merge_legacy_and_bespoke(api):
 
     # Legacy column mapped first, then the bespoke link.
     assert links[0] == {
-        'id': None, 'label': 'View on IMSLP',
-        'url': 'https://imslp.org/x', 'link_type': 'imslp', 'sort_order': -1,
+        'id': None, 'label': 'View Score', 'source': 'IMSLP',
+        'url': 'https://imslp.org/x', 'link_type': 'score', 'sort_order': -1,
     }
+    # bcgs.org is on no allowlist, and that is fine: the allowlist governs the CTA, not
+    # admission. Only rehosting sites are refused, so this keeps its author's label.
     bespoke = next(link for link in links if link['link_type'] == 'commission')
     assert bespoke['label'] == 'BCGS Commission'
     assert bespoke['url'] == 'https://www.bcgs.org/commissions/'
+    assert bespoke['source'] is None
     assert bespoke['id'] is not None

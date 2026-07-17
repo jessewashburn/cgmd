@@ -26,6 +26,22 @@ from .serializers import (
 from .permissions import IsAdminOrReadOnly, IsCognitoAdmin
 
 
+# Match the query against the best-matching *word* of a field rather than the whole
+# string, and at 0.5 rather than word_similarity's 0.6 default.
+#
+# Why: a search is usually one name ("Taregas"), but the fields it's compared against
+# are whole names ("francisco tarrega"). Whole-string similarity() is diluted by the
+# rest of the field — "Taregas" scores only 0.24 there, under the 0.3 threshold the
+# `%` operator uses, so typo tolerance silently never fired (the case this filter is
+# named for returned nothing). word_similarity() scores the query against the closest
+# single word instead: 0.50 for the same pair, while every unrelated composer stays
+# at 0.00 — a wide margin, so this buys typo tolerance without inviting false hits.
+#
+# `<%`/`%>` are still GIN-index-backed (gin_trgm_ops), so this keeps the index scan
+# that the `%` operator was chosen for.
+WORD_SIMILARITY_THRESHOLD = 0.5
+
+
 class TrigramSearchFilter(filters.SearchFilter):
     """
     PostgreSQL trigram fuzzy search with fallback to standard search.
@@ -70,6 +86,16 @@ class TrigramSearchFilter(filters.SearchFilter):
         if not search_fields:
             return queryset
 
+        # `<%`/`%>` read their cutoff from a session GUC, so it has to be set on the
+        # connection before the query runs. set_config() (not SET) because SET can't
+        # take a bound parameter. Connections are reused (DB_CONN_MAX_AGE), which is
+        # harmless: nothing else in the app uses the word-similarity operators.
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT set_config('pg_trgm.word_similarity_threshold', %s, false)",
+                [str(WORD_SIMILARITY_THRESHOLD)],
+            )
+
         q_objects = Q()
         for search_field in search_fields:
             field = search_field.lstrip('^=@')
@@ -78,13 +104,13 @@ class TrigramSearchFilter(filters.SearchFilter):
             queryset = queryset.annotate(
                 **{annotation_name: TrigramSimilarity(field, search_param)}
             )
-            # FILTER with the `%` operator (trigram_similar lookup) so the GIN trigram
-            # indexes are used. Using `similarity() > 0.3` here instead forces a full
-            # sequential scan. The `%` operator matches when similarity >=
-            # pg_trgm.similarity_threshold (default 0.3, our intended value).
+            # FILTER with the `%>` operator (trigram_word_similar lookup) so the GIN
+            # trigram indexes are used. Annotating word_similarity() and comparing it
+            # here instead would force a full sequential scan. `%>` matches when
+            # word_similarity(query, field) >= WORD_SIMILARITY_THRESHOLD, set above.
             if '__' in field:
                 # A related-model field (e.g. works.composer__full_name). Matching it
-                # directly puts the `%` on the *joined* table, so the OR spans the join
+                # directly puts the operator on the *joined* table, so the OR spans the join
                 # and can't use a single-table index. Resolving it to an inline subquery
                 # doesn't help either — a SubPlan inside an OR blocks bitmap index scans,
                 # forcing a seq scan of this table. So resolve the related rows to a
@@ -94,13 +120,13 @@ class TrigramSearchFilter(filters.SearchFilter):
                 related_model = queryset.model._meta.get_field(relation).related_model
                 related_ids = list(
                     related_model.objects.filter(
-                        **{f'{subfield}__trigram_similar': search_param}
+                        **{f'{subfield}__trigram_word_similar': search_param}
                     ).values_list('pk', flat=True)[:2000]
                 )
                 if related_ids:
                     q_objects |= Q(**{f'{relation}__in': related_ids})
             else:
-                q_objects |= Q(**{f'{field}__trigram_similar': search_param})
+                q_objects |= Q(**{f'{field}__trigram_word_similar': search_param})
         
         if q_objects:
             similarity_fields = [
@@ -792,6 +818,23 @@ class WorkViewSet(viewsets.ModelViewSet):
                     | Q(Exists(WorkInstrumentation.objects.filter(
                         work=OuterRef('pk'), category__name=category_name)))
                 )
+
+        # Arrangements. The UI is a single "Include arrangements" checkbox, default ON,
+        # which sends *no param* when checked — so the common case costs nothing and the
+        # default URL stays clean. Unchecking sends is_arrangement=false to hide them.
+        #
+        # A plain WHERE on an indexed boolean, deliberately: no join, so
+        # `ORDER BY instrumentation_category__name` still sees one row per work and the
+        # paginated count stays honest (cf. works-column-sort-ordering-fix).
+        is_arrangement = self.request.query_params.get('is_arrangement')
+        if is_arrangement is not None:
+            wanted = is_arrangement.strip().lower()
+            if wanted in ('true', '1'):
+                queryset = queryset.filter(is_arrangement=True)
+            elif wanted in ('false', '0'):
+                queryset = queryset.filter(is_arrangement=False)
+            # Anything else is ignored rather than 400'd: a junk value should degrade to
+            # "no filter", not break the page.
 
         # Filter by composer country
         composer_country = self.request.query_params.get('composer_country')

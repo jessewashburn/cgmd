@@ -7,6 +7,7 @@ const noFilters: TableFilterState = {
   country: '',
   yearRange: [DEFAULT_YEAR_MIN, DEFAULT_YEAR_MAX],
   eras: [],
+  includeArrangements: true,
 };
 
 describe('buildWorkFilterParams', () => {
@@ -20,6 +21,7 @@ describe('buildWorkFilterParams', () => {
       country: 'Spain',
       yearRange: [1800, 1900],
       eras: [],
+      includeArrangements: true,
     });
     expect(params).toEqual({
       instrumentation: 'Guitar solo',
@@ -48,6 +50,18 @@ describe('buildWorkFilterParams', () => {
     expect(params).toHaveProperty('composer_eras');
     expect(params).not.toHaveProperty('eras');
   });
+
+  it('sends nothing when arrangements are included — the default costs no param', () => {
+    // Including them is the default, so the common request must stay unfiltered rather
+    // than carrying is_arrangement=true. Guards the clean-URL property.
+    expect(buildWorkFilterParams({ ...noFilters, includeArrangements: true })).toEqual({});
+  });
+
+  it('sends is_arrangement=false only when arrangements are excluded', () => {
+    expect(buildWorkFilterParams({ ...noFilters, includeArrangements: false })).toEqual({
+      is_arrangement: 'false',
+    });
+  });
 });
 
 describe('buildComposerFilterParams', () => {
@@ -61,6 +75,7 @@ describe('buildComposerFilterParams', () => {
       country: 'Spain',
       yearRange: [1700, 1850],
       eras: [],
+      includeArrangements: true,
     });
     expect(params).toEqual({
       instrumentation: 'Guitar solo',

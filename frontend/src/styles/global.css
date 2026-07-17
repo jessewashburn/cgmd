@@ -323,3 +323,27 @@ a:hover {
     padding: var(--spacing-sm);
   }
 }
+
+/* "Arrangement" badge — works list and work detail.
+   Load-bearing, not decorative: an arrangement row carries the ORIGINAL work's title
+   (IMSLP files arrangements under the work they arrange), so without this a violin
+   partita just looks misfiled in a guitar catalog.
+   Muted rather than accent-coloured: it labels a row, it doesn't call for a click. */
+.badge-arrangement {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: transparent;
+  /* --color-text-muted (#999) is only ~2.8:1 on white — fine for a hint, not for a
+     label someone is meant to read. --color-text-secondary (#666) clears 4.5:1. */
+  color: var(--color-text-secondary);
+  font-family: var(--font-primary);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+  vertical-align: middle;
+  white-space: nowrap;
+}

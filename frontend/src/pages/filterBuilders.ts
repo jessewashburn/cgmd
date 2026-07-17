@@ -45,5 +45,8 @@ export function buildWorkFilterParams(filters: TableFilterState): Record<string,
   }
   // Named for the relation it crosses, matching composer_country above.
   if (filters.eras.length) params.composer_eras = filters.eras.join(',');
+  // Only the exclude case is sent. Including arrangements is the default, so the common
+  // request carries no param at all and the backend skips the filter entirely.
+  if (!filters.includeArrangements) params.is_arrangement = 'false';
   return params;
 }

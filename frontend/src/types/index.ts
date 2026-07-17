@@ -48,6 +48,8 @@ export interface Work {
   /** Other ways the work can be played, beyond its notated instrumentation.
    *  Detail view only — the Works table's column means the primary. */
   alternate_instrumentations: Array<{ id: number; name: string; note: string }>;
+  /** Arranged for guitar rather than written for it. See WorkListItem.is_arrangement. */
+  is_arrangement: boolean;
   duration_minutes: number | null;
   difficulty_level: number | null;
   movements: number | null;
@@ -63,6 +65,10 @@ export interface Work {
 
 // A bespoke external link on a work. `id` is null for links synthesized from
 // the legacy fixed URL columns (imslp/sheerpluck/youtube/score).
+//
+// `label` is DERIVED SERVER-SIDE from the link's host (see music/publishers.py) — free
+// score sources get "View Score", paid ones "Buy Score". Render it as-is; don't remap it
+// client-side or the two will drift.
 export interface WorkLink {
   id: number | null;
   label: string;
@@ -71,11 +77,17 @@ export interface WorkLink {
     | 'imslp'
     | 'sheerpluck'
     | 'youtube'
-    | 'score'
+    | 'score'      // a free score source
+    | 'purchase'   // a paid one
     | 'publisher'
     | 'recording'
     | 'commission'
     | 'other';
+  // Which source this came from ("IMSLP", "Bärenreiter"). Null when the host isn't a
+  // recognised source. Necessary, not decorative: a work with an IMSLP *and* a Mutopia
+  // score renders two buttons both reading "View Score", and this is what tells them
+  // apart.
+  source: string | null;
   sort_order: number;
 }
 
@@ -96,6 +108,10 @@ export interface WorkListItem {
   instrumentation_detail: string;
   duration_minutes: number | null;
   difficulty_level: number | null;
+  // Arranged for guitar rather than written for it. The list renders a badge from this:
+  // an arrangement row carries the *original* work's title, so without the badge
+  // "Violin Partita No.2" just looks misfiled.
+  is_arrangement: boolean;
 }
 
 export interface Country {
@@ -146,6 +162,10 @@ export interface SuggestionTarget {
   instrumentation_detail?: string;
   composition_year?: number | string | null;
   instrumentation_category?: { name?: string } | null;
+  /** Arranged for guitar rather than written for it. Submitting it only *suggests* the
+   *  tag — it lands as `arrangement_basis='suggested'` when an admin applies the
+   *  suggestion, never straight from the public form. */
+  is_arrangement?: boolean;
   /** As the API serves them (objects), or as names once normalized for editing. */
   alternate_instrumentations?: Array<string | { name: string }>;
   /** Structurally DraftLink (see LinkListEditor); spelled out so this module

@@ -22,6 +22,13 @@ interface AdvancedFiltersProps {
   eraLabel?: string;
   /** What the chip counts are counting, for the tooltip. */
   eraCountNoun?: string;
+  /** "Include arrangements" checkbox. Omit `onIncludeArrangementsChange` to hide it —
+   *  /composers has no use for it (shared component, like the era chips above).
+   *
+   *  Deliberately a checkbox and not a third "arrangements only" state: the ask was to
+   *  include or exclude them, and defaulting to true makes unchecking the exclude. */
+  includeArrangements?: boolean;
+  onIncludeArrangementsChange?: (value: boolean) => void;
 }
 
 export default function AdvancedFilters({
@@ -40,6 +47,8 @@ export default function AdvancedFilters({
   onEraToggle,
   eraLabel = 'Era',
   eraCountNoun = 'composers',
+  includeArrangements = true,
+  onIncludeArrangementsChange,
 }: AdvancedFiltersProps) {
   const [showFilters, setShowFilters] = useState(false);
   const [showInstrumentationDropdown, setShowInstrumentationDropdown] = useState(false);
@@ -219,6 +228,22 @@ export default function AdvancedFilters({
               )}
             </div>
           </div>
+
+          {/* Include arrangements — works list only. On by default: an arrangement with
+              a real score to link to is repertoire, so it belongs in the list unless the
+              user says otherwise. Unchecking is the filter-out. */}
+          {onIncludeArrangementsChange && (
+            <div className="filter-group">
+              <label className="filter-checkbox">
+                <input
+                  type="checkbox"
+                  checked={includeArrangements}
+                  onChange={(e) => onIncludeArrangementsChange(e.target.checked)}
+                />
+                <span>Include arrangements</span>
+              </label>
+            </div>
+          )}
 
           {/* Clear Filters Button */}
           <button className="clear-filters-button" onClick={onClearFilters}>

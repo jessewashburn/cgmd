@@ -64,6 +64,13 @@ export default function WorkDetailPage() {
       <header className="detail-header">
         <div className="detail-title-row">
           <h1>{work.title}</h1>
+          {/* The title here is the *original* work's, so on a guitar site "Violin Partita
+              No.2" needs saying why it's listed: a guitar arrangement of it exists. */}
+          {work.is_arrangement && (
+            <span className="badge-arrangement" title="Arranged or transcribed for guitar">
+              Arrangement
+            </span>
+          )}
           <SuggestionButton itemType="work" itemData={work} />
         </div>
         <p className="detail-subtitle">

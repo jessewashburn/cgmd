@@ -399,3 +399,33 @@
     margin-bottom: var(--spacing-sm);
   }
 }
+
+/* "Include arrangements" — the works list's one arrangement control.
+   A checkbox rather than a chip row: the ask is include-or-exclude, and with the box
+   ticked by default, unticking IS the exclude. A third "arrangements only" state was
+   built and removed; don't add it back without a use case. */
+.filter-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-family: var(--font-primary);
+  color: var(--color-text);
+  /* Aligns with the dropdowns' controls, which sit under a .filter-label. */
+  margin-top: 1.9rem;
+  user-select: none;
+}
+
+.filter-checkbox input {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+  /* Inputs inherit the page's dark scheme on mobile otherwise, which is what made the
+     suggestion-form fields unreadable (see mobile-dark-suggestion-form-fields). */
+  color-scheme: light;
+}
+
+.filter-checkbox:hover {
+  color: var(--color-accent);
+}

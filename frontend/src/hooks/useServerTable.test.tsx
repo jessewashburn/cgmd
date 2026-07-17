@@ -20,6 +20,8 @@ function buildFilterParams(f: TableFilterState): Record<string, string | number>
     p.year_max = max;
   }
   if (f.eras.length) p.composer_eras = f.eras.join(',');
+  // Only the exclude case is sent; including them is the default (see filterBuilders).
+  if (!f.includeArrangements) p.is_arrangement = 'false';
   return p;
 }
 
@@ -130,8 +132,61 @@ describe('useServerTable', () => {
       country: 'Spain',
       yearRange: [1800, 1900],
       eras: [],
+      // No `arr` in the URL means arrangements are included — the default.
+      includeArrangements: true,
     });
     expect(result.current.page).toBe(2);
+  });
+
+  describe('include arrangements', () => {
+    it('writes arr=0 only when excluding, and sends is_arrangement=false', async () => {
+      const { wrapper, location } = makeHarness(['/works?page=4']);
+      const { result } = renderHook(() => useServerTable(config), { wrapper });
+      await waitFor(() => expect(lastRequestUrl()).toBeDefined());
+
+      // Default (included) sends no param at all — the clean-URL, unfiltered case.
+      expect(urlParams(location.search).get('arr')).toBeNull();
+      expect(reqParams().get('is_arrangement')).toBeNull();
+
+      act(() => result.current.setIncludeArrangements(false));
+      await waitFor(() => expect(urlParams(location.search).get('arr')).toBe('0'));
+      expect(urlParams(location.search).get('page')).toBeNull(); // reset, like every filter
+      await waitFor(() => expect(reqParams().get('is_arrangement')).toBe('false'));
+
+      // Re-checking drops the param rather than leaving ?arr=1 behind.
+      act(() => result.current.setIncludeArrangements(true));
+      await waitFor(() => expect(urlParams(location.search).get('arr')).toBeNull());
+      await waitFor(() => expect(reqParams().get('is_arrangement')).toBeNull());
+    });
+
+    it('parses ?arr=0 from a shared URL', async () => {
+      const { wrapper } = makeHarness(['/works?arr=0']);
+      const { result } = renderHook(() => useServerTable(config), { wrapper });
+      await waitFor(() => expect(lastRequestUrl()).toBeDefined());
+
+      expect(result.current.filters.includeArrangements).toBe(false);
+      expect(reqParams().get('is_arrangement')).toBe('false');
+    });
+
+    it('treats any other arr value as the default rather than hiding works', async () => {
+      // A hand-edited ?arr=banana must not silently filter the catalog.
+      const { wrapper } = makeHarness(['/works?arr=banana']);
+      const { result } = renderHook(() => useServerTable(config), { wrapper });
+      await waitFor(() => expect(lastRequestUrl()).toBeDefined());
+
+      expect(result.current.filters.includeArrangements).toBe(true);
+      expect(reqParams().get('is_arrangement')).toBeNull();
+    });
+
+    it('clearFilters restores arrangements to included', async () => {
+      const { wrapper, location } = makeHarness(['/works?arr=0']);
+      const { result } = renderHook(() => useServerTable(config), { wrapper });
+      await waitFor(() => expect(lastRequestUrl()).toBeDefined());
+
+      act(() => result.current.clearFilters());
+      await waitFor(() => expect(urlParams(location.search).get('arr')).toBeNull());
+      expect(result.current.filters.includeArrangements).toBe(true);
+    });
   });
 
   describe('era selection', () => {

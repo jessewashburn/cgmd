@@ -8,6 +8,7 @@ from .models import (
     Country, InstrumentationCategory, DataSource,
     Composer, ComposerAlias, Work, Tag, WorkTag, WorkLink, UserSuggestion
 )
+from .publishers import cta_for, resolve_link
 
 
 class CountrySerializer(serializers.ModelSerializer):
@@ -106,7 +107,12 @@ class WorkListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'composer', 'catalog_number',
             'composition_year', 'instrumentation_category', 'instrumentation_detail',
-            'duration_minutes', 'difficulty_level'
+            'duration_minutes', 'difficulty_level',
+            # The list renders an "Arrangement" badge from this. It is what makes an
+            # arrangement row legible: the title is the *original* work's title, so
+            # without the badge "Violin Partita No.2" just looks misfiled in a guitar
+            # catalog.
+            'is_arrangement',
         ]
     
     def get_composer(self, obj):
@@ -169,6 +175,7 @@ class WorkDetailSerializer(serializers.ModelSerializer):
             'duration_minutes', 'key_signature',
             'instrumentation_category', 'instrumentation_detail',
             'alternate_instrumentations',
+            'is_arrangement',
             'difficulty_level', 'description', 'movements',
             'imslp_url', 'sheerpluck_url', 'youtube_url', 'score_url',
             'links',
@@ -188,23 +195,48 @@ class WorkDetailSerializer(serializers.ModelSerializer):
         work_tags = obj.work_tags.select_related('tag')
         return [wt.tag.name for wt in work_tags]
 
+    @staticmethod
+    def _link_entry(url, default_type, default_label, link_id, sort_order):
+        """One link, with its CTA derived from the host rather than from stored text."""
+        resolved = resolve_link(url)
+        if resolved:
+            link_type, source = resolved
+        else:
+            # Unrecognised host. Keep rendering it — this is pre-existing data a human
+            # entered, and silently hiding their link is worse than showing it — but
+            # claim no source, and fall back to the stored label.
+            link_type, source = default_type, None
+        return {
+            'id': link_id,
+            'label': cta_for(link_type, default_label),
+            'url': url,
+            'link_type': link_type,
+            'source': source,
+            'sort_order': sort_order,
+        }
+
     def get_links(self, obj):
-        """Unified list merging the fixed legacy URL columns and bespoke WorkLink rows."""
+        """Unified list merging the fixed legacy URL columns and bespoke WorkLink rows.
+
+        The label is *derived from the host* (music/publishers), never authored, which is
+        what stops a hundred bespoke names accumulating. Consequence worth knowing: a work
+        carrying both an IMSLP and a Mutopia score renders two buttons both reading
+        "View Score" — `source` is what tells them apart, so the UI must show it.
+        """
         merged = []
         legacy = [
-            (obj.imslp_url, 'View on IMSLP', 'imslp'),
-            (obj.sheerpluck_url, 'View on SheerPluck', 'sheerpluck'),
-            (obj.youtube_url, 'Watch on YouTube', 'youtube'),
-            (obj.score_url, 'View Score', 'score'),
+            (obj.imslp_url, 'imslp', 'View on IMSLP'),
+            (obj.sheerpluck_url, 'sheerpluck', 'View on SheerPluck'),
+            (obj.youtube_url, 'youtube', 'Watch on YouTube'),
+            (obj.score_url, 'score', 'View Score'),
         ]
-        for url, label, link_type in legacy:
+        for url, default_type, default_label in legacy:
             if url:
-                merged.append({
-                    'id': None, 'label': label, 'url': url,
-                    'link_type': link_type, 'sort_order': -1,
-                })
+                merged.append(self._link_entry(url, default_type, default_label,
+                                               link_id=None, sort_order=-1))
         for wl in obj.links.all():
-            merged.append(WorkLinkSerializer(wl).data)
+            merged.append(self._link_entry(wl.url, wl.link_type, wl.label,
+                                           link_id=wl.id, sort_order=wl.sort_order))
         return merged
 
 

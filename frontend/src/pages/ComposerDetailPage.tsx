@@ -50,10 +50,15 @@ export default function ComposerDetailPage() {
     ? `b.${composer.birth_year || '?'}`
     : `${composer.birth_year || '?'} – ${composer.death_year}`;
 
+  // The server's annotated count, not works.length: the two used to disagree whenever a
+  // composer had more works than one page (29 of them do), and the page reported the
+  // page size as the total.
+  const workCount = composer.work_count ?? works.length;
+
   const metadataItems = [
     composer.country && { label: 'Country', value: composer.country.name },
     composer.period && { label: 'Period', value: composer.period },
-    { label: 'Works', value: works.length },
+    { label: 'Works', value: workCount },
   ].filter(Boolean) as Array<{ label: string; value: string | number }>;
 
   return (
@@ -81,7 +86,7 @@ export default function ComposerDetailPage() {
       </header>
 
       <section className="detail-section">
-        <h2>Works ({works.length})</h2>
+        <h2>Works ({workCount})</h2>
         {works.length > 0 ? (
           <div className="works-grid card-grid">
             {works.map((work) => (
