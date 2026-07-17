@@ -19,9 +19,31 @@ export const composerService = {
     return response.data;
   },
 
+  /**
+   * Every work by a composer — the detail page lists them all, so it must follow
+   * pagination rather than show page 1 and call it the set.
+   *
+   * It used to return `results` from a single unparameterised request (100 rows) while the
+   * page rendered `works.length` as the total. 29 composers exceed 100 works, so their
+   * pages silently hid the rest and understated the count: Carulli showed 100 of 219, and
+   * Bach's Violin Partita No.2 (BWV 1004 — the Chaconne) sorts under "V" on page 4 and was
+   * invisible entirely.
+   *
+   * Pages are requested by number rather than by following `next`: that URL comes back
+   * absolute and http://, which an https:// page would refuse as mixed content.
+   */
   getWorks: async (id: number) => {
-    const response = await api.get<PaginatedResponse<Work>>(`/composers/${id}/works/`);
-    return response.data.results || [];
+    const all: Work[] = [];
+    // 12 × 100 leaves generous headroom over the current maximum (219) while stopping a
+    // pathological composer from firing unbounded requests.
+    for (let page = 1; page <= 12; page++) {
+      const response = await api.get<PaginatedResponse<Work>>(`/composers/${id}/works/`, {
+        params: { page, page_size: 100 },
+      });
+      all.push(...(response.data.results || []));
+      if (!response.data.next) break;
+    }
+    return all;
   },
 };
 
