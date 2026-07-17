@@ -276,10 +276,15 @@ class Work(models.Model):
     """Musical works in the classical guitar repertoire"""
 
     # Follows ComposerEra/WorkInstrumentation's `basis` precedent.
+    #
+    # The default is '' — "nobody has decided" — and NOT 'manual'. This matters: the
+    # importer refuses to touch 'manual'/'suggested' rows so a human's call survives a
+    # backfill, so defaulting to 'manual' would mark all 73k pre-existing works as
+    # hand-decided and the retro-tag would silently do nothing to any of them.
     ARRANGEMENT_BASIS_CHOICES = [
         ('derived', 'Derived'),      # from IMSLP's own (arr) categories
         ('suggested', 'Suggested'),  # from a user suggestion an admin applied
-        ('manual', 'Manual'),        # set by hand
+        ('manual', 'Manual'),        # a human explicitly ruled on it
     ]
 
     # Relationships
@@ -323,10 +328,11 @@ class Work(models.Model):
                                         help_text="Arranged/transcribed for guitar rather than "
                                                   "originally written for it")
     arrangement_basis = models.CharField(max_length=10, choices=ARRANGEMENT_BASIS_CHOICES,
-                                        default='manual', blank=True,
-                                        help_text="Where is_arrangement came from. Re-running the "
-                                                  "importer rewrites 'derived' only, so a human's "
-                                                  "call survives every backfill.")
+                                        default='', blank=True,
+                                        help_text="Where is_arrangement came from; blank means "
+                                                  "undecided. The importer rewrites 'derived' and "
+                                                  "blank only, so a human's call survives every "
+                                                  "backfill.")
 
     # Content
     description = models.TextField(null=True, blank=True)

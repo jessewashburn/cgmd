@@ -37,6 +37,28 @@ from music.utils import generate_title_sort_key
 
 DEFAULT_CSV = 'data/imslp_arrangements.csv'
 
+# The guitar forces each IMSLP arrangement category implies, phrased the way the existing
+# resolver already understands.
+#
+# This is NOT decoration. `Work.save()` re-derives `instrumentation_category` from
+# `instrumentation_detail` whenever the detail is non-blank, so assigning a category that
+# the detail text contradicts is silently reverted — on this import AND on the next admin
+# edit of the row. Feeding the resolver text it understands ('guitar' -> Solo, '2 guitars'
+# -> Duo) makes the row self-consistent and stable. Verified: these six round-trip onto
+# exactly the six categories the crawler maps to.
+#
+# Note this describes the GUITAR realization, not the original scoring — a cello suite's
+# detail becomes 'guitar'. That is the point: the row is in a guitar catalog because of
+# its guitar arrangement, and that is what ?instrumentation= should match.
+SOURCE_CATEGORY_DETAIL = {
+    'For guitar (arr)': 'guitar',
+    'For 2 guitars (arr)': '2 guitars',
+    'For 3 guitars (arr)': '3 guitars',
+    'For 4 guitars (arr)': '4 guitars',
+    'For voice, guitar (arr)': 'voice, guitar',
+    'For guitar, piano (arr)': 'guitar, piano',
+}
+
 
 def normalize(value):
     """The catalog's canonical normalization. Must match byte-for-byte.
@@ -132,6 +154,11 @@ class Command(BaseCommand):
             stats['skipped_no_category'] += 1
             return
 
+        detail = SOURCE_CATEGORY_DETAIL.get(row['source_category'])
+        if detail is None:
+            stats['skipped_no_category'] += 1
+            return
+
         composer = self._resolve_composer(row['composer_name'], composer_cache, stats, opts)
         url, title = row['url'], row['work_title']
 
@@ -143,7 +170,7 @@ class Command(BaseCommand):
                 composer=composer, title_normalized=normalize(title)).first()
 
         if existing:
-            self._update(existing, row, category, url, stats, opts)
+            self._update(existing, category, detail, url, stats, opts)
             work = existing
         else:
             work = Work(
@@ -151,8 +178,9 @@ class Command(BaseCommand):
                 title=title,
                 title_normalized=normalize(title),
                 title_sort_key=generate_title_sort_key(title),
-                instrumentation_category=category,
-                instrumentation_detail=row['source_category'],
+                # Category is intentionally NOT set here: Work.save() derives it from
+                # the detail below, and setting both invites them to disagree.
+                instrumentation_detail=detail,
                 imslp_url=url,
                 data_source=source,
                 is_arrangement=True,
@@ -166,7 +194,7 @@ class Command(BaseCommand):
 
         self._sync_alternates(work, row, categories, stats)
 
-    def _update(self, work, row, category, url, stats, opts):
+    def _update(self, work, category, detail, url, stats, opts):
         """Retro-tag (and re-bucket) a work that is already in the catalog."""
         changed = []
 
@@ -182,9 +210,17 @@ class Command(BaseCommand):
         # Re-bucket out of 'Other'. The original bulk_import parsed free-text
         # instrumentation and dumped 4,371 IMSLP works into the "we failed" bucket; the
         # arr category tells us the real answer, and we're already touching the row.
+        #
+        # Rewriting the *detail* is what makes this stick: assigning the category alone
+        # would be reverted by Work.save()'s derivation, both here and on the next admin
+        # edit. The cost is the original scoring prose ("cello") — which resolved to
+        # nothing useful, or the row wouldn't be in 'Other'.
+        #
+        # Rows already carrying a real category are left completely alone: their prose is
+        # good, and the re-bucket has nothing to fix.
         current = work.instrumentation_category.name if work.instrumentation_category else None
         if current in (None, 'Other') and category.name != current:
-            work.instrumentation_category = category
+            work.instrumentation_detail = detail
             stats['rebucketed'] += 1
             changed.append('instrumentation_category')
 
@@ -193,7 +229,7 @@ class Command(BaseCommand):
             changed.append('imslp_url')
 
         if changed:
-            work.save()
+            work.save()   # derives instrumentation_category from the detail set above
             stats['works_updated'] += 1
             if opts['verbose']:
                 self.stdout.write(f'  ~ {work.title[:50]} ({", ".join(changed)})')

@@ -67,6 +67,7 @@ export default function SuggestNewWorkModal({ isOpen, onClose }: SuggestNewWorkM
           work_title: '',
           composition_year: '',
           instrumentation_detail: '',
+          is_arrangement: false,
           comment: '',
           links: [],
         });
