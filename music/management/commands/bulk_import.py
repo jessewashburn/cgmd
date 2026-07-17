@@ -1,6 +1,10 @@
 """
-Fast bulk import optimized for remote PostgreSQL databases like Supabase.
-Uses bulk_create and minimal queries for maximum speed.
+Fast bulk CSV import: bulk_create and minimal queries.
+
+Written when the database was remote and every round-trip cost cross-region latency.
+Postgres now sits in the same Docker Compose stack as the app (see AWS_DEPLOYMENT.md),
+so the batching matters less than it did — but it is still the fastest way to load the
+Sheerpluck/IMSLP CSVs, and it is what the existing 73k rows were loaded with.
 """
 
 import csv
@@ -12,7 +16,7 @@ from music.utils import generate_title_sort_key
 
 
 class Command(BaseCommand):
-    help = 'Fast bulk import for Supabase - processes all data in memory then bulk inserts'
+    help = 'Fast bulk CSV import - processes all data in memory then bulk inserts'
 
     def add_arguments(self, parser):
         parser.add_argument('--batch-size', type=int, default=1000, help='Batch size for bulk operations')
