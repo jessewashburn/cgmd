@@ -55,7 +55,9 @@ describe('composerService.getWorks', () => {
     serveTotal(168); // Bach
     const works = await composerService.getWorks(1);
     expect(works).toHaveLength(168);
-    expect(works.at(-1)).toMatchObject({ title: 'Work 168' });
+    // Not .at(-1): this project's tsconfig lib predates ES2022, so it typechecks in
+    // vitest but breaks `npm run build`.
+    expect(works[works.length - 1]).toMatchObject({ title: 'Work 168' });
   });
 
   it('follows pagination by page number, not the absolute `next` url', async () => {
