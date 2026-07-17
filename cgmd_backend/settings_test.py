@@ -37,3 +37,15 @@ else:
 # Speed: cheap hasher, no debug.
 PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']
 DEBUG = False
+
+# DEBUG = False makes Django enforce ALLOWED_HOSTS, and `runserver` refuses to boot when
+# it's empty: "CommandError: You must set settings.ALLOWED_HOSTS if DEBUG is False."
+#
+# Base settings only ever populate ALLOWED_HOSTS from the environment, and settings.py
+# calls load_dotenv(), so a developer's .env silently supplied it locally while CI — which
+# has no .env — got [] and could not start the E2E web server. Test settings must not
+# depend on a machine's .env to be runnable, so pin it here, next to the DEBUG that
+# requires it.
+#
+# 'testserver' is the host Django's own test client sends.
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]', 'testserver']
