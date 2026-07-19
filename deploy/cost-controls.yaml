@@ -1,0 +1,296 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  cgmd cost controls: budget + deny-provisioning action (slow layer) and a
+  CloudFront egress circuit breaker (fast layer). Deploy to us-east-1.
+
+Parameters:
+  AlertEmail:
+    Type: String
+    Default: jeswashburn@gmail.com
+  MonthlyBudgetUSD:
+    Type: String
+    Default: '25'
+  DeployUserName:
+    Type: String
+    Default: solmu
+    Description: IAM user the deny policy attaches to when the budget is breached.
+  DistributionId:
+    Type: String
+    Default: E23JJN25WLB1B9
+  EgressTripBytesPerHour:
+    Type: Number
+    Default: 2147483648
+    Description: 2 GiB/hr. Normal peak is ~5 MiB/day, so this is ~10000x baseline.
+  AnomalyMonitorArn:
+    Type: String
+    Default: arn:aws:ce::429541886989:anomalymonitor/72ca65e8-003a-4381-8468-d3bcec8fe44f
+    Description: >
+      ARN of the EXISTING Cost Anomaly Detection monitor. AWS allows only one
+      DIMENSIONAL/SERVICE monitor per account and auto-creates one when Cost
+      Explorer is enabled, so this stack subscribes to it rather than creating
+      its own. Find it with:
+        aws ce get-anomaly-monitors --query 'AnomalyMonitors[].[MonitorName,MonitorArn]' --output text
+
+Resources:
+
+  # ---------- notification fan-out ----------
+  CostAlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: cgmd-cost-alerts
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref AlertEmail
+
+  # SNS must let Budgets and CloudWatch publish.
+  CostAlertTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics: [!Ref CostAlertTopic]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [budgets.amazonaws.com, cloudwatch.amazonaws.com]
+            Action: sns:Publish
+            Resource: !Ref CostAlertTopic
+
+  # ---------- LAYER 3: slow / billing-layer ----------
+  MonthlyBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: cgmd-monthly
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit:
+          Amount: !Ref MonthlyBudgetUSD
+          Unit: USD
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 60
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: SNS
+              Address: !Ref CostAlertTopic
+        - Notification:
+            NotificationType: FORECASTED
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - SubscriptionType: SNS
+              Address: !Ref CostAlertTopic
+
+  # Denies *provisioning of new costly resources* only. Deliberately does NOT
+  # touch s3:* or cloudfront:CreateInvalidation, so deploy-frontend.sh and
+  # deploy-backend.sh keep working while this is attached.
+  DenyCostlyProvisioning:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: cgmd-deny-costly-provisioning
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Deny
+            Action:
+              - ec2:RunInstances
+              - ec2:CreateNatGateway
+              - ec2:AllocateAddress
+              - ec2:CreateVolume
+              - ec2:ModifyVolume
+              - rds:CreateDBInstance
+              - rds:CreateDBCluster
+              - elasticache:CreateCacheCluster
+              - redshift:CreateCluster
+              - sagemaker:CreateNotebookInstance
+              - sagemaker:CreateEndpoint
+              - elasticmapreduce:RunJobFlow
+              - cloudfront:CreateDistribution
+              - elasticloadbalancing:CreateLoadBalancer
+            Resource: '*'
+
+  BudgetActionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: cgmd-budget-action-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: budgets.amazonaws.com}
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: attach-deny-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [iam:AttachUserPolicy, iam:DetachUserPolicy]
+                Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:user/${DeployUserName}'
+
+  DenyProvisioningAction:
+    Type: AWS::Budgets::BudgetsAction
+    Properties:
+      BudgetName: cgmd-monthly
+      ActionType: APPLY_IAM_POLICY
+      ApprovalModel: AUTOMATIC
+      NotificationType: ACTUAL
+      ActionThreshold:
+        Value: 100
+        Type: PERCENTAGE
+      ExecutionRoleArn: !GetAtt BudgetActionRole.Arn
+      Definition:
+        IamActionDefinition:
+          PolicyArn: !Ref DenyCostlyProvisioning
+          Users: [!Ref DeployUserName]
+      Subscribers:
+        - Type: SNS
+          Address: !Ref CostAlertTopic
+    DependsOn: MonthlyBudget
+
+  # ---------- LAYER 1: fast / traffic-layer circuit breaker ----------
+  BreakerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: cgmd-egress-breaker-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: lambda.amazonaws.com}
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: disable-distribution
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudfront:GetDistributionConfig
+                  - cloudfront:UpdateDistribution
+                Resource: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${DistributionId}'
+
+  EgressBreaker:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: cgmd-egress-breaker
+      Runtime: python3.12
+      Handler: index.handler
+      Timeout: 60
+      Role: !GetAtt BreakerRole.Arn
+      Environment:
+        Variables:
+          DISTRIBUTION_ID: !Ref DistributionId
+      Code:
+        ZipFile: |
+          import os, boto3
+          cf = boto3.client('cloudfront')
+
+          def handler(event, context):
+              did = os.environ['DISTRIBUTION_ID']
+              # Manual invoke with {"dry_run": true} exercises IAM, wiring and the
+              # read path without taking the site down, so the breaker can be
+              # verified without an outage. A real SNS alarm event is an envelope
+              # with a "Records" key and no "dry_run", so it can never land here.
+              dry = isinstance(event, dict) and bool(event.get('dry_run'))
+              cur = cf.get_distribution_config(Id=did)
+              cfg, etag = cur['DistributionConfig'], cur['ETag']
+              if dry:
+                  return {'status': 'dry-run', 'distribution': did,
+                          'enabled': cfg['Enabled'], 'etag': etag,
+                          'would_disable': cfg['Enabled']}
+              if not cfg['Enabled']:
+                  return {'status': 'already-disabled', 'distribution': did}
+              cfg['Enabled'] = False
+              cf.update_distribution(Id=did, IfMatch=etag, DistributionConfig=cfg)
+              return {'status': 'disabled', 'distribution': did}
+
+  BreakerInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt EgressBreaker.Arn
+      Action: lambda:InvokeFunction
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref BreakerTopic
+
+  BreakerTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: cgmd-egress-breaker
+
+  BreakerTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics: [!Ref BreakerTopic]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: cloudwatch.amazonaws.com}
+            Action: sns:Publish
+            Resource: !Ref BreakerTopic
+
+  BreakerSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref BreakerTopic
+      Protocol: lambda
+      Endpoint: !GetAtt EgressBreaker.Arn
+
+  BreakerEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref BreakerTopic
+      Protocol: email
+      Endpoint: !Ref AlertEmail
+
+  # CloudFront BytesDownloaded is a free default metric, Global dimension,
+  # only published in us-east-1.
+  EgressAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: cgmd-cloudfront-egress-runaway
+      AlarmDescription: CloudFront egress far above baseline; trips the breaker.
+      Namespace: AWS/CloudFront
+      MetricName: BytesDownloaded
+      Dimensions:
+        - {Name: DistributionId, Value: !Ref DistributionId}
+        - {Name: Region, Value: Global}
+      Statistic: Sum
+      Period: 3600
+      EvaluationPeriods: 1
+      Threshold: !Ref EgressTripBytesPerHour
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref BreakerTopic]
+
+  # ---------- free, no-action detection ----------
+  # No AWS::CE::AnomalyMonitor here on purpose: only one DIMENSIONAL/SERVICE
+  # monitor is permitted per account and enabling Cost Explorer creates one,
+  # so creating a second fails with AlreadyExists. Subscribe to the existing one.
+  AnomalySubscription:
+    Type: AWS::CE::AnomalySubscription
+    Properties:
+      SubscriptionName: cgmd-anomaly-alerts
+      Frequency: DAILY
+      MonitorArnList: [!Ref AnomalyMonitorArn]
+      ThresholdExpression: >-
+        {"Dimensions":{"Key":"ANOMALY_TOTAL_IMPACT_ABSOLUTE","MatchOptions":["GREATER_THAN_OR_EQUAL"],"Values":["5"]}}
+      Subscribers:
+        - Type: EMAIL
+          Address: !Ref AlertEmail
+
+Outputs:
+  BreakerFunction:
+    Value: !Ref EgressBreaker
+  ReEnableCommand:
+    Description: Undo the circuit breaker after investigating.
+    Value: !Sub 'aws cloudfront update-distribution --id ${DistributionId} (set Enabled=true)'
+  DetachDenyCommand:
+    Value: !Sub 'aws iam detach-user-policy --user-name ${DeployUserName} --policy-arn ${DenyCostlyProvisioning}'

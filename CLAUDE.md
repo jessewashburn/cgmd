@@ -41,6 +41,24 @@ Rotating the pool means updating `amplify.ts` **and** `deploy/config.sh`.
 
 See the "Database migrations in prod" section of [AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md) for details.
 
+## AWS spend — read the bill, don't price it from rate cards
+The account runs **~$11.70/mo** and ~$10 of that is irreducible. Before proposing any cost
+"optimisation", read the **Cost controls and monitoring** section of
+[AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md). Three traps that have already bitten:
+- The deploy user `solmu` is **denied `ce:GetCostAndUsage`**. Use `AWS_PROFILE=cgmd-admin`.
+  An earlier pass reconstructed the bill from public rate cards and invented an **$8/mo WAF
+  charge that doesn't exist** — 41% of an estimate that was wrong by 66%.
+- CloudFront is on a **Free flat-rate plan**: CloudFront + WAF + DDoS are bundled at **$0**, there
+  are **no overage charges**, and the plan is **invisible to the API** (Cost Explorer or console
+  only). **Never remove the WAF** — it's free, it can't be disassociated while a plan is active,
+  and WAF-blocked traffic doesn't count against the plan allowance.
+- **Never switch to `PriceClass_100`** — it costs $0 today and would drop Asia/South America/
+  Oceania/Africa/India.
+
+Cost infra is IaC: [deploy/cost-controls.yaml](deploy/cost-controls.yaml) (`cgmd-cost-controls`).
+The egress breaker disables the distribution — **frontend and API together**. Verify it with
+`{"dry_run": true}`, never by firing it.
+
 ## Tests
 - Backend: `pytest` (from repo root). Frontend: `cd frontend && npm test`. E2E: `cd frontend && npm run test:e2e`.
 - CI (`.github/workflows/ci.yml`) runs all three on every PR. CI does **not** deploy.

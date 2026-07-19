@@ -225,6 +225,14 @@ else:
     if os.getenv('CORS_ALLOWED_ORIGINS'):
         CSRF_TRUSTED_ORIGINS.extend(os.getenv('CORS_ALLOWED_ORIGINS', '').split(','))
 
+# Behind CloudFront -> Caddy, the request reaches gunicorn over plain HTTP on the
+# docker network, so Django would build http:// absolute URLs (DRF's paginated
+# `next`/`previous`) for a page that is served over https. Caddy sets
+# X-Forwarded-Proto from the scheme CloudFront used, and the /api/* origin is
+# https-only, so trusting that header is what makes request.is_secure() correct.
+# Both hops overwrite the header, so a client cannot spoof it.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # Cookie settings for cross-site requests in production
 CSRF_COOKIE_SAMESITE = 'Lax' if DEBUG else 'None'
 CSRF_COOKIE_SECURE = not DEBUG  # HTTPS required for SameSite=None
